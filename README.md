@@ -50,7 +50,8 @@ class Handler(object):
     default handler for log event
     """
     def __call__(self, line, file):
-        print(line)
+        print(line, end='')
+
 ```
 It's up to you to deal with the log line in this handler such as mailing, send to wechat and etc. It's a bad idea to do time consuming tasks here because it will delay other other logs' handling even though it won't cause write event missing.
 

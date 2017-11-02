@@ -1,4 +1,6 @@
 # standard libraries
+from __future__ import print_function
+
 import os
 import sys
 import re
@@ -6,7 +8,6 @@ import time
 import logging
 import importlib
 from collections import defaultdict
-import pdb
 
 # third party modules
 import glob2
@@ -103,7 +104,7 @@ class Handler(object):
     default handler for log event
     """
     def __call__(self, line, file):
-        print(line)
+        print(line, end='')
 
 
 class Dog(object):

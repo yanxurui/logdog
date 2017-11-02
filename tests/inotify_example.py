@@ -5,7 +5,6 @@
 import time
 import pyinotify
 from pprint import pprint
-import pdb
 
 wm = pyinotify.WatchManager()  # Watch Manager
 mask = pyinotify.IN_DELETE | pyinotify.IN_CREATE | pyinotify.IN_MODIFY | pyinotify.IN_MOVED_TO | pyinotify.IN_MOVED_FROM |pyinotify.IN_MOVE_SELF | pyinotify.IN_DELETE_SELF # watched events
@@ -19,7 +18,6 @@ class EventHandler(pyinotify.ProcessEvent):
         print "Removing:", event.pathname
 
     def process_IN_MODIFY(self, event):
-        # pdb.set_trace()
         print "Modify:", event.pathname
 
     # mv ../a.txt ./
@@ -30,13 +28,9 @@ class EventHandler(pyinotify.ProcessEvent):
     def process_IN_MOVED_FROM(self, event):
         print "MoveFROM", event.pathname
 
-    # mv a.txt ../
     def process_IN_MOVE_SELF(self, event):
         print "MoveSELF", event.pathname
         wm.rm_watch(event.wd)
-        time.sleep(10)
-        wdd = wm.add_watch('a.txt', mask)
-        pprint(wdd)
 
     def process_IN_DELETE_SELF(self, event):
         print "DeleteSELF", event.pathname
