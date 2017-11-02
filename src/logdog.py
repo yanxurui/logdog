@@ -102,12 +102,15 @@ class Dog(object):
 
     def __init__(self, name, paths, handler=Handler(), includes=[], excludes=[]):
         self.name = name
-        self.paths = paths
+        self.paths = []
         self.filter = Filter(includes, excludes)
         self.handler = handler
 
         for path in paths:
             path = os.path.abspath(path)
+            # pyinotify's daemon process will chdir to /
+            # so it's necessary to save abspath which is relative to the current directory
+            self.paths.append(path)
             if glob2.has_magic(path):
                 # for glob pattern
                 # list files which match the pattern
@@ -171,12 +174,15 @@ class Dog(object):
                 # has not been watched before
                 for dog in cls.dogs[path]:
                     for path in dog.paths:
-                        if fnmatch(pathname, os.path.abspath(path)):
+                        if fnmatch(pathname, path):
                             cls.dogs[pathname].append(dog)
-                if pathname not in cls.dogs:
+                if pathname in cls.dogs:
+                    logger.debug('watched by %s' % cls.dogs[pathname])
+                else:
                     # does not match glob pattern
                     logger.info('%s does not match any pattern' % pathname)
                     return
+
             # there are 2 cases:
             # 1. old file is moved and a new file is created
             #   - in this case the old log object is replaced
