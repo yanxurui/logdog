@@ -20,7 +20,7 @@ class Config(object):
         for k, v in kargs.items():
             setattr(self, k, v)
 
-class TestBasic(unittest.TestCase):
+class TestFunction(unittest.TestCase):
 
     def setUp(self):
         self.q = Queue()
@@ -48,7 +48,7 @@ class TestBasic(unittest.TestCase):
         elif os.path.isdir(path):
             shutil.rmtree(path)
 
-    def handler(self, line):
+    def handler(self, line, file):
         print(line, end='')
         self.q.put(line)
 

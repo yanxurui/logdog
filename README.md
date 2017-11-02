@@ -35,18 +35,18 @@ DOG is a dict in the form of `{name: attribute}` where `name` is not important a
 #### handler
 a handler is a function which has the following signature
 ```
-def handler(line):
+def handler(line, file):
 	pass
 ```
-or a callable object
+`file` is the absolute path of the log file.
 
-the default handler is:
+the default handler is a callable object of:
 ```
 class Handler(object):
     """
     default handler for log event
     """
-    def __call__(self, line):
+    def __call__(self, line, file):
         print(line)
 ```
 It's up to you to deal with the log line in this handler such as mailing, send to wechat and etc. It's a bad idea to do time consuming tasks here because it will delay other other logs' handling even though it won't cause write event missing.
@@ -78,8 +78,8 @@ path is a list, it supports the following forms:
 ### daemonize
 * DAEMONIZE(False): whether to start a daemon process running in the backgroup, **the following configs only take effect when DAEMONIZE is True**
 * PID_FILE: pid file path
-* STDOUT: where to redirect stdout
-* STDERR: where to redirect sterr
+* STDOUT: where to redirect stdout(pyinotify's internal log)
+* STDERR: where to redirect sterr(exception traceback)
 
 according to pyinotify:
 
@@ -91,7 +91,7 @@ according to pyinotify:
 
 ### test
 ```
-python2.7 -m unittest -v test_basic
+python2.7 -m unittest -v test_function
 ```
 
 ### inotify test

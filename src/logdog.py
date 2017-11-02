@@ -87,7 +87,7 @@ class Handler(object):
     """
     default handler for log event
     """
-    def __call__(self, line):
+    def __call__(self, line, file):
         print(line)
 
 
@@ -207,7 +207,7 @@ class Dog(object):
         """
         for dog in cls.dogs[pathname]:
             if dog.filter(line):
-                dog.handler(line)
+                dog.handler(line, pathname)
 
 
 class EventHandler(pyinotify.ProcessEvent):
