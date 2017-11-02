@@ -23,6 +23,8 @@ class Log(object):
     def __init__(self, path, new):
         self.path = path
         self._f = open(path)
+        self.total = 0
+        self._half = None
         self.logs[path] = self
         if new:
             # if the log file is newly created, write events are missed before watch the file 
@@ -41,8 +43,20 @@ class Log(object):
         while True:
             line = self._f.readline() # Retain newline. Return empty string at EOF
             if line:
-                yield line
+                if self._half:
+                    line = self._half + line
+                    self._half = None
+                if line.endswith('\n'):
+                    yield line
+                else:
+                    # read half line
+                    self._half = line
+                    break
             else:
+                # reach the end of the file
+                # in case there is line without newline character
+                if self._half:
+                    yield self._half
                 break
 
     def process(self):
@@ -53,7 +67,8 @@ class Log(object):
         for line in self.read():
             i += 1
             Dog.process(self.path, line)
-        logger.info('%s process %d line(s)' % (self, i))
+        self.total += i
+        logger.info('%s process %d/%d lines' % (self, i, self.total))
 
 
 class Filter(object):
@@ -269,7 +284,7 @@ def main(config):
     Dog.watchall()
 
     # block...
-    logger.info('start watch')
+    logger.info('start loop')
     notifier.loop(
         daemonize=daemonize,
         pid_file=getattr(config, 'PID_FILE', None),

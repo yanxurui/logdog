@@ -36,9 +36,12 @@ DOG is a dict in the form of `{name: attribute}` where `name` is not important a
 a handler is a function which has the following signature
 ```
 def handler(line, file):
+	"""
+	`line` includes newline character(\n)
+	`file` is the absolute path of the log file.
+	"""
 	pass
 ```
-`file` is the absolute path of the log file.
 
 the default handler is a callable object of:
 ```

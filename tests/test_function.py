@@ -35,7 +35,7 @@ class TestFunction(unittest.TestCase):
         #Ctrl-c
         os.kill(self.p.pid, signal.SIGINT)
         self.assertTrue(self.q.empty())
-        
+
     def start(self, config):
         p = Process(target=logdog.main, args=(config,))
         p.start()
@@ -311,5 +311,27 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(self.q.get_nowait(), 'wrong! wrong! wrong!\n')
 
 
+    def test_half_line(self):
+        """
+        bug: half line will be read if the log is being written at the same time
+        """
+        config = Config(
+            DOGS = {
+                'test': {
+                    'paths': ['a.log'],
+                    'includes': ['wrong'],
+                    'handler': self.handler
+                }
+            }
+        )
+        # create an empty file or truncate if it exists
+        f = self.open('a.log')
+        self.start(config)
+
+        self.write(f, 'something w')
+        self.assertTrue(self.q.empty())
+
+        self.write(f, 'rong\n')
+        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
 
 
