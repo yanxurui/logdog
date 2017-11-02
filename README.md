@@ -4,13 +4,21 @@
 * real time
 * glob path
 * regex keywords
-* a dog can watch multiple logs and a log can be watched by multiple dogs
+* support logrotate
 * custmize handler
+* does not require log file to exist before watch
+* a dog can watch multiple logs and a log can be watched by multiple dogs
 
 
 ## usage
+start
 ```
 python2.7 src/logdog.py -c conf.py
+```
+
+stop
+```
+kill -s SIGINT <pid>
 ```
 
 conf.py is your config file which contains upper case module variables as configuration. The effective variables are classified as follows:
@@ -80,6 +88,11 @@ according to pyinotify:
 
 
 ## Development
+
+### test
+```
+python2.7 -m unittest -v test_basic
+```
 
 ### inotify test
 
