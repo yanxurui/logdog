@@ -8,9 +8,7 @@ import unittest
 import shutil
 from multiprocessing import Process, Queue
 
-# sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(1, os.path.normpath(os.path.abspath('..')))
-from src import logdog
+import logdog
 
 # create object and set attributes: https://stackoverflow.com/a/2827664/6088837
 class Config(object):
@@ -49,7 +47,7 @@ class TestFunction(unittest.TestCase):
             shutil.rmtree(path)
 
     def handler(self, line, file):
-        print(line, end='')
+        # print(line, end='')
         self.q.put(line)
 
     def open(self, path):
@@ -340,7 +338,7 @@ class TestFunction(unittest.TestCase):
         a handler takes long time to complete
         """
         def handler(line, file):
-            print(line, end='')
+            # print(line, end='')
             sleep(1)
             self.q.put(line)
 

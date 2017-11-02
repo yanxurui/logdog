@@ -300,6 +300,6 @@ if __name__ == '__main__':
     if not config:
         # best way to exit script: https://stackoverflow.com/a/19747562/6088837
         # exit status will be one
-        sys.exit('Usage: %s -c your-config.py' % sys.argv[0])
+        sys.exit('Usage: python -m logdog -c your-config.py')
     main(config)
 

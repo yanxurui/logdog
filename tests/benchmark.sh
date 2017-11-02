@@ -2,10 +2,8 @@
 
 num=100000
 
-echo "write $num lines into the log file"
-
 # How to flush output of Python print: https://stackoverflow.com/a/230780/6088837
-cmd='python2.7 -u ../src/logdog.py -c ../conf.py'
+cmd='python2.7 -u -m logdog -c conf.py'
 pid=$(pgrep -f "$cmd" -d' ')
 if [ $? -eq 0 ]; then
     echo -n stop...
@@ -18,10 +16,12 @@ rm logdog.log
 rm /tmp/logdog.*
 touch a.log b.log
 mkdir -p logs
-echo start...
 echo $cmd
 $cmd
+pid=$(pgrep -f "$cmd" -d' ')
+echo $pid
 
+echo "write $num lines into the log file"
 for i in $(seq $num);do
     echo "wrong $i" >> a.log
 done

@@ -26,7 +26,7 @@ stop
 kill -s SIGINT <pid>
 ```
 
-conf.py is your config file which contains upper case module variables as configuration. An example can be found [here](yanxurui/logdog/blob/master/conf.py). The effective variables are classified as follows:
+conf.py is your config file which contains upper case module variables as configuration. An example can be found [here](yanxurui/logdog/blob/master/tests/conf.py). The effective variables are classified as follows:
 
 ### dog
 A Dog consists of:
