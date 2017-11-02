@@ -11,17 +11,22 @@
 
 
 ## usage
+install
+```
+git clone https://github.com/yanxurui/logdog
+cd logdog
+python setup.py install
+```
 start
 ```
-python2.7 src/logdog.py -c conf.py
+python2.7 -m logdog -c conf.py
 ```
-
 stop
 ```
 kill -s SIGINT <pid>
 ```
 
-conf.py is your config file which contains upper case module variables as configuration. The effective variables are classified as follows:
+conf.py is your config file which contains upper case module variables as configuration. An example can be found [here](yanxurui/logdog/blob/master/conf.py). The effective variables are classified as follows:
 
 ### dog
 A Dog consists of:
@@ -56,7 +61,7 @@ class Handler(object):
 It's up to you to deal with the log line in this handler such as mailing, send to wechat and etc. It's a bad idea to do time consuming tasks here because it will delay other other logs' handling even though it won't cause write event missing.
 
 
-#### `includes` & `excludes`
+#### includes & excludes
 They are regular expressions and both are optional.
 The handler is called if any regex in includes is found in the line and any regex in excludes is not found in the line.
 That is to say, `or` logic is applied in the includes and `and` logic is applied in the excludes.
@@ -93,9 +98,20 @@ according to pyinotify:
 
 ## Development
 
+```
+python setup.py develop
+```
+
 ### test
 ```
 python2.7 -m unittest -v test_function
+```
+
+### benchmark
+```
+cd tests
+chmod +x benchmark.sh
+./benchmark.sh
 ```
 
 ### inotify test
