@@ -190,6 +190,17 @@ class Dog(object):
             cls.watch(pathname, True)
 
     @classmethod
+    def delete(cls, pathname):
+        """
+        file being watched is deleted
+        if the parent directory exists and not being watched then watch it
+        """
+        directory = os.path.dirname(pathname)
+        if os.path.isdir(directory) and directory not in cls.dogs:
+            cls.dogs[directory] = cls.dogs[pathname]
+            cls.watch(directory)
+
+    @classmethod
     def process(cls, pathname, line):
         """
         a new line has been appended to the log file
@@ -219,6 +230,7 @@ class EventHandler(pyinotify.ProcessEvent):
         """
         logger.debug('MOVE_SELF %s' % event)
         wm.rm_watch(event.wd)
+        Dog.delete(event.pathname)
 
 
 # global(module) variable

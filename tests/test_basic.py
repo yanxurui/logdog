@@ -138,6 +138,11 @@ class TestBasic(unittest.TestCase):
         # the last few logs are missing
         self.assertTrue(self.q.empty())
 
+        # write to new file
+        f = self.open('a.log')
+        self.write(f, 'something wrong\n')
+        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+
 
     def test_2_files(self):
         """
