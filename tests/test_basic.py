@@ -25,12 +25,16 @@ class TestBasic(unittest.TestCase):
     def setUp(self):
         self.q = Queue()
         self.rm('logdog.log')
+        self.rm('a.log')
+        self.rm('b.log')
+        self.rm('logs')
         print()
 
     def tearDown(self):
         self.assertTrue(self.p.is_alive())
         #Ctrl-c
         os.kill(self.p.pid, signal.SIGINT)
+        self.assertTrue(self.q.empty())
         
     def start(self, config):
         p = Process(target=logdog.main, args=(config,))
@@ -97,7 +101,6 @@ class TestBasic(unittest.TestCase):
                 }
             }
         )
-        # create an empty file or truncate if it exists
         f = self.open('a.log')
         f.write('you are on a wrong way\n')
         self.start(config)
@@ -122,7 +125,6 @@ class TestBasic(unittest.TestCase):
                 }
             }
         )
-        # create an empty file or truncate if it exists
         f = self.open('a.log')
         self.start(config)
 
@@ -179,7 +181,6 @@ class TestBasic(unittest.TestCase):
                 }
             }
         )
-        # create an empty file or truncate if it exists
         f = self.open('a.log')
         self.start(config)
 
@@ -197,6 +198,50 @@ class TestBasic(unittest.TestCase):
         self.assertEqual(self.q.get_nowait(), 'something wrong\n')
 
 
+    def test_not_exists(self):
+        """
+        log file is not required to exist before watch
+        """
+        config = Config(
+            DOGS = {
+                'test': {
+                    'paths': ['a.log'],
+                    'includes': ['wrong'],
+                    'handler': self.handler
+                }
+            }
+        )
+        self.start(config)
+
+        # create file after watch
+        f = self.open('a.log')
+
+        self.write(f, 'something wrong\n')
+        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+
+
+    def test_2_not_exists(self):
+        """
+        bug: the same dog watch the same path(.) twice
+        """
+        config = Config(
+            DOGS = {
+                'test': {
+                    'paths': ['a.log', 'b.log'],
+                    'includes': ['wrong'],
+                    'handler': self.handler
+                }
+            }
+        )
+        self.start(config)
+
+        # create file after watch
+        f1 = self.open('a.log')
+        self.write(f1, 'something wrong\n')
+        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        # q must be empty now
+
+
     def test_glob(self):
         """
         glob pattern can be used in path
@@ -210,7 +255,6 @@ class TestBasic(unittest.TestCase):
                 }
             }
         )
-        self.rm('logs')
         os.makedirs('logs')
         f1 = self.open('logs/a.log')
         self.start(config)
@@ -238,7 +282,6 @@ class TestBasic(unittest.TestCase):
             }
         )
 
-        self.rm('logs')
         os.makedirs('logs/b')
         os.makedirs('logs/c')
         fa = self.open('logs/a.log')
@@ -261,6 +304,7 @@ class TestBasic(unittest.TestCase):
         fd = self.open('logs/d/d.log')
         self.write(fd, 'wrong! wrong! wrong!\n')
         self.assertEqual(self.q.get_nowait(), 'wrong! wrong! wrong!\n')
+
 
 
 

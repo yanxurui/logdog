@@ -98,7 +98,7 @@ class Dog(object):
     2. a filter defined by includes and excludes
     3. a handler function or a callable object
     """
-    dogs=defaultdict(list)
+    dogs=defaultdict(set)
 
     def __init__(self, name, paths, handler=Handler(), includes=[], excludes=[]):
         self.name = name
@@ -115,7 +115,7 @@ class Dog(object):
                 # for glob pattern
                 # list files which match the pattern
                 for file in glob2.iglob(path):
-                    self.dogs[file].append(self)
+                    self.dogs[file].add(self)
                 # also watch the longest non-magic path
                 while True:
                     path, _ = os.path.split(path)
@@ -127,7 +127,7 @@ class Dog(object):
                 # if the file does not exist, watch the directory instead
             while not os.path.exists(path):
                 path, _ = os.path.split(path)
-            self.dogs[path].append(self)
+            self.dogs[path].add(self)
 
     def __repr__(self):
         return '<%s name=%s, paths=%s, filter=%s, handler=%s>' % (self.__class__.__name__, self.name, self.paths, self.filter, self.handler)
@@ -175,7 +175,7 @@ class Dog(object):
                 for dog in cls.dogs[path]:
                     for path in dog.paths:
                         if fnmatch(pathname, path):
-                            cls.dogs[pathname].append(dog)
+                            cls.dogs[pathname].add(dog)
                 if pathname in cls.dogs:
                     logger.debug('watched by %s' % cls.dogs[pathname])
                 else:
