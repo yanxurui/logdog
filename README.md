@@ -14,13 +14,11 @@ Logs are checked periodically by dogs in the backgroup. Lines match the keyword 
 ## usage
 install
 ```
-git clone https://github.com/yanxurui/logdogs
-cd logdogs
-python setup.py install
+pip install logdogs
 ```
 start
 ```
-python2.7 -m logdogs -c conf.py
+logdogs -c conf.py
 ```
 stop
 ```

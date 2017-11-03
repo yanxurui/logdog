@@ -219,7 +219,7 @@ class LogDogs(object):
                     # process all logs if the log file is newly created
                     self.do_process(log)
 
-    def run(self, inteval):
+    def run(self):
         # infinite loop
         while True:
             time.sleep(self.inteval)
@@ -229,27 +229,8 @@ class LogDogs(object):
                 logger.error('\n'+traceback.format_exc())
 
 
-def main(config):
-    if config.DAEMONIZE:
-        pid, stdout, stderr = None, None, None
-        if config.PID_FILE:
-            pid = pidfile.TimeoutPIDLockFile(config.PID_FILE, 3)
-        if config.STDOUT:
-            stdout = open(config.STDOUT, 'a')
-        if config.STDERR:
-            stderr = open(config.STDOUT, 'a')
-        context = daemon.DaemonContext(
-            working_directory=config.DIR,
-            pidfile=pid,
-            stdout=stdout,
-            stderr=stderr)
-        context.open()
-
-    logdogs = LogDogs(config)
-    logdogs.run()
-
-
-if __name__ == '__main__':
+def main():
+    # parse config
     if len(sys.argv) == 3 and sys.argv[1] == '-c':
         config_path = sys.argv[2]
         config = Config(
@@ -266,6 +247,29 @@ if __name__ == '__main__':
     else:
         # best way to exit script: https://stackoverflow.com/a/19747562/6088837
         # exit status will be one
-        sys.exit('Usage: python -m logdog -c your-config.py')
-    main(config)
+        sys.exit('Usage: logdogs -c your-config.py')
+
+    # start daemon
+    if config.DAEMONIZE:
+        pid, stdout, stderr = None, None, None
+        if config.PID_FILE:
+            pid = pidfile.TimeoutPIDLockFile(config.PID_FILE, 3)
+        if config.STDOUT:
+            stdout = open(config.STDOUT, 'a')
+        if config.STDERR:
+            stderr = open(config.STDOUT, 'a')
+        context = daemon.DaemonContext(
+            working_directory=config.DIR,
+            pidfile=pid,
+            stdout=stdout,
+            stderr=stderr)
+        context.open()
+
+    # start logdogs
+    logdogs = LogDogs(config)
+    logdogs.run()
+
+
+if __name__ == '__main__':
+    main()
 

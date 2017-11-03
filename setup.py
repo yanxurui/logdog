@@ -9,13 +9,18 @@ setup(
     license="MIT License",
     keywords="log monitor",
     url="https://github.com/yanxurui/logdog",
-    package_dir = {'': 'src'},
-    py_modules=['logdogs', 'pyconfig'],
+    package_dir = {'logdogs': 'src'},
+    packages=['logdogs'],
     platforms=['Linux'],
     install_requires=[
         'glob2>=0.6',
         'python-daemon>=2.1.2'
     ],
+    entry_points={
+        'console_scripts': [
+            'logdogs=logdogs:main',
+        ],
+    },
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',

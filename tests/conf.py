@@ -3,7 +3,7 @@ import os
 import logging
 
 # you can even call basicConfig to customize the log
-LOG_FILE = 'logdog.log'
+LOG_FILE = 'logdogs.log'
 LOG_LEVEL = 'DEBUG'
 # use logger in handler
 logger = logging.getLogger(__name__)
@@ -12,9 +12,9 @@ INTEVAL = 10
 
 DAEMONIZE = True
 DIR = os.path.abspath('.')
-PID_FILE = 'logdog.pid'
-STDOUT = 'logdog.out'
-STDERR = 'logdog.err'
+PID_FILE = 'logdogs.pid'
+STDOUT = 'logdogs.out'
+STDERR = 'logdogs.err'
 
 
 class MyHandler(object):
