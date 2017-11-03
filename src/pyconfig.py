@@ -1,10 +1,11 @@
+"""
+use python module as config
+"""
+
 import os
 import sys
 import importlib
 
-"""
-use python module as config
-"""
 
 class Field(object):
     def __init__(self, name, types=str, default=None, required=False):
@@ -35,12 +36,15 @@ class Field(object):
 
 
 class Config(object):
-    def __init__(self, path, *fields):
-        """wrapper for the config module
+    """wrapper for the config module
         
         1. load config from a pure python file
         2. check fields
+        3. proxy to config module
+    """
+    def __init__(self, path, *fields):
         
+        """
         Arguments:
             path {str} -- path to the config file
             fields {list} -- [a list of Field object]

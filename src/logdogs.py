@@ -1,3 +1,7 @@
+"""
+A daemon to monitor keywords in any log files specified by glob pattern
+"""
+
 # standard libraries
 from __future__ import print_function
 
@@ -66,7 +70,7 @@ class Log(object):
 
     def process(self):
         """
-        log file has been changed, call dogs to process line by line
+        if log file has been appended, call dogs to process
         """
         lines = self.readlines()
         self.total += len(lines)
@@ -95,6 +99,9 @@ class Log(object):
 
 
 class Filter(object):
+    """
+    define filter contion by includes and excludes regex
+    """
     def __init__(self, includes, excludes):
         self.includes = includes
         self.excludes = excludes
@@ -102,6 +109,9 @@ class Filter(object):
         self.re_excludes = [re.compile(e) for e in excludes]
 
     def __call__(self, line):
+        """
+        return True if the line meets requirements
+        """
         # or
         m = 1
         for r in self.re_includes:
@@ -143,6 +153,9 @@ class Dog(object):
         self.handler = handler
 
     def files(self):
+        """
+        a generator to return all files watched by this dog
+        """
         for path in self.paths:
             for file in glob2.iglob(path):
                 yield file
@@ -151,6 +164,9 @@ class Dog(object):
         return '<%s name=%s>' % (self.__class__.__name__, self.name)
 
     def process(self, pathname, lines):
+        """
+        process the new lines from a file in a loop
+        """
         lines = filter(self.filter, lines)
         logger.info('%s process %d lines of %s' % (self, len(lines), pathname))
         if lines:
@@ -158,6 +174,9 @@ class Dog(object):
 
 
 class LogDogs(object):
+    """
+    manager all dogs and logs
+    """
     def __init__(self, config):
         self.count = 0
         self.inteval = config.INTEVAL
@@ -187,6 +206,9 @@ class LogDogs(object):
                     self.logs_map[file] = log
 
     def do_process(self, log):
+        """
+        call log's process
+        """
         old = log.old
         n = log.process()
         if old and n == 0:
@@ -202,6 +224,10 @@ class LogDogs(object):
             self.old_logs_map[log.path] = log
 
     def process(self):
+        """
+        run every X seconds
+        check current and newly created log files
+        """
         self.count += 1
         logger.info('loop %d' % self.count)
 
@@ -220,7 +246,9 @@ class LogDogs(object):
                     self.do_process(log)
 
     def run(self):
-        # infinite loop
+        """
+        infinite loop
+        """
         while True:
             time.sleep(self.inteval)
             try:
