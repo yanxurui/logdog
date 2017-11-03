@@ -14,20 +14,20 @@ Logs are checked periodically by dogs in the backgroup. Lines match the keyword 
 ## usage
 install
 ```
-git clone https://github.com/yanxurui/logdog
-cd logdog
+git clone https://github.com/yanxurui/logdogs
+cd logdogs
 python setup.py install
 ```
 start
 ```
-python2.7 -m logdog -c conf.py
+python2.7 -m logdogs -c conf.py
 ```
 stop
 ```
 kill <pid>
 ```
 
-conf.py is your config file which contains upper case module variables as configuration. An example can be found [here](yanxurui/logdog/blob/master/tests/conf.py). The effective variables are classified as follows:
+conf.py is your config file which contains upper case module variables as configuration. An example can be found [here](yanxurui/logdogs/blob/master/tests/conf.py). The effective variables are classified as follows:
 
 
 ## config

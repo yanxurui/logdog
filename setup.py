@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name="LogDog",
+    name="logdogs",
     version="0.0.1",
     author="Xurui Yan",
     author_email="yxr1993@gmail.com",
@@ -10,7 +10,7 @@ setup(
     keywords="log monitor",
     url="https://github.com/yanxurui/logdog",
     package_dir = {'': 'src'},
-    py_modules=['logdog', 'pyconfig'],
+    py_modules=['logdogs', 'pyconfig'],
     platforms=['Linux'],
     install_requires=[
         'glob2>=0.6',
