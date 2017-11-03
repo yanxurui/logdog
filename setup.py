@@ -2,10 +2,11 @@ from setuptools import setup
 
 setup(
     name="logdogs",
-    version="0.1.0",
+    version="0.1.0b1",
     author="Xurui Yan",
     author_email="yxr1993@gmail.com",
     description='A daemon to monitor keywords in any log files specified by glob pattern',
+    long_description=open('README.rst').read(),
     license="MIT License",
     keywords="log monitor",
     url="https://github.com/yanxurui/logdog",
