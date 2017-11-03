@@ -9,8 +9,8 @@ setup(
     license="MIT License",
     keywords="log monitor",
     url="https://github.com/yanxurui/logdog",
-    package_dir = {'logdogs': 'src'},
-    packages=['logdogs'],
+    package_dir = {'': 'src'},
+    py_modules=['logdogs', 'pyconfig'],
     platforms=['Linux'],
     install_requires=[
         'glob2>=0.6',
