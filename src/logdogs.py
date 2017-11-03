@@ -25,9 +25,6 @@ class Log(object):
     """
     a log file is represented by a Log object
     """
-    logs_map = {} # {path: log object}
-
-
     def __init__(self, path, dogs, new=False):
         self.path = path
         self.dogs = dogs
@@ -37,12 +34,8 @@ class Log(object):
         self.f = open(path)
         sres = os.fstat(self.f.fileno())
         self.dev, self.ino = sres[ST_DEV], sres[ST_INO]
-        self.logs_map[path] = self
-        
-        if new:
-            # process all logs if the log file is newly created
-            self.process()
-        else:
+        logger.info('watch %s' % self)
+        if not new:
             # ignore old logs
             self.f.seek(0, 2) # seek to the end
 
@@ -81,11 +74,6 @@ class Log(object):
         if lines:
             for dog in self.dogs:
                 dog.process(self.path, lines)
-
-        if self.old and len(lines) == 0:
-            del self.logs[self.path]
-            return
-
         # check rotate
         try:
             # stat the file by path, checking for existence
@@ -98,8 +86,12 @@ class Log(object):
         if not sres or sres[ST_DEV] != self.dev or sres[ST_INO] != self.ino:
             logger.warn('%s is moved' % self)
             self.old = True
-            del self.logs_map[self.path]
-            self.logs_map[self.path+'-unknow-path'] = self
+        # return number of rows
+        return len(lines)
+
+    def close(self):
+        # is this necessary?
+        self.f.close()
 
 
 class Filter(object):
@@ -144,27 +136,16 @@ class Dog(object):
     2. a filter defined by includes and excludes
     3. a handler function or a callable object
     """
-    dogs = []
-    dogs_map = defaultdict(set) # {path: set([dog object])}
-
     def __init__(self, name, paths, handler=Handler(), includes=[], excludes=[]):
         self.name = name
         self.paths = paths
         self.filter = Filter(includes, excludes)
         self.handler = handler
-        self.dogs.append(self)
-        self.watch(True)
 
-    def watch(self, init=False):
+    def files(self):
         for path in self.paths:
             for file in glob2.iglob(path):
-                self.dogs_map[path].add(self)
-                if file not in Log.logs_map:
-                    logger.info('%s watch %s' % (self, file))
-                    if init:
-                        Log(file, self.dogs_map[path])
-                    else:
-                        Log(file, self.dogs_map[path], new=True)
+                yield file
 
     def __repr__(self):
         return '<%s name=%s>' % (self.__class__.__name__, self.name)
@@ -176,39 +157,77 @@ class Dog(object):
             self.handler(pathname, lines)
 
 
-# count is for the sake of test
-count = 0
-def process():
-    global count
-    count += 1
-    logger.info('loop %d' % count)
+class LogDogs(object):
+    def __init__(self, config):
+        self.count = 0
+        self.inteval = config.INTEVAL
+        self.logs_map = {} # {path: log object}
+        self.old_logs_map = {} # {path: log object}
+        self.dogs = []
+        self.dogs_map = defaultdict(set) # {path: set([dog object])}
 
-    for log in Log.logs_map.values():
-        log.process()
-    for dog in Dog.dogs:
-        dog.watch()
+        # config log
+        # if filename is None, log to standard output
+        logging.basicConfig(
+            filename=config.LOG_FILE,
+            format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s',
+            level=getattr(logging, config.LOG_LEVEL)
+        )
 
-def init(config):
-    # config log
-    # if filename is None, log to standard output
-    logging.basicConfig(
-        filename=config.LOG_FILE,
-        format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s',
-        level=getattr(logging, config.LOG_LEVEL, 'WARNING')
-    )
+        logger.info('start from %s' % os.path.abspath('.'))
 
-    logger.info('start from %s' % os.path.abspath('.'))
-    for name, attrs in config.DOGS.items():
-        Dog(name, **attrs)
+        for name, attrs in config.DOGS.items():
+            dog = Dog(name, **attrs)
+            self.dogs.append(dog)
+            for file in dog.files():
+                if dog not in self.dogs_map[file]:
+                    self.dogs_map[file].add(dog)
+                if file not in self.logs_map:
+                    log = Log(file, self.dogs_map[file])
+                    self.logs_map[file] = log
 
-def loop(inteval):
-    # infinite loop
-    while True:
-        time.sleep(config.INTEVAL)
-        try:
-            process()
-        except:
-            logger.error('\n'+traceback.format_exc())
+    def do_process(self, log):
+        old = log.old
+        n = log.process()
+        if old and n == 0:
+            # there is no more log so remove it
+            logger.warn('remove %s' % log)
+            self.old_logs_map[log.path].close()
+            del self.old_logs_map[log.path]
+        elif log.old:
+            # move to old_logs
+            del self.logs_map[log.path]
+            if log.path in self.old_logs_map:
+                self.old_logs_map[log.path].close()
+            self.old_logs_map[log.path] = log
+
+    def process(self):
+        self.count += 1
+        logger.info('loop %d' % self.count)
+
+        for log in self.logs_map.values():
+            self.do_process(log)
+        for log in self.old_logs_map.values():
+            self.do_process(log)
+        for dog in self.dogs:
+            for file in dog.files():
+                if dog not in self.dogs_map[file]:
+                    self.dogs_map[file].add(dog)
+                if file not in self.logs_map:
+                    log = Log(file, self.dogs_map[file], new=True)
+                    self.logs_map[file] = log
+                    # process all logs if the log file is newly created
+                    self.do_process(log)
+
+    def run(self, inteval):
+        # infinite loop
+        while True:
+            time.sleep(self.inteval)
+            try:
+                self.process()
+            except:
+                logger.error('\n'+traceback.format_exc())
+
 
 def main(config):
     if config.DAEMONIZE:
@@ -225,9 +244,9 @@ def main(config):
             stdout=stdout,
             stderr=stderr)
         context.open()
-    
-    init(config)
-    loop(config.INTEVAL)
+
+    logdogs = LogDogs(config)
+    logdogs.run()
 
 
 if __name__ == '__main__':

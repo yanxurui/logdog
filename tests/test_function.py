@@ -8,20 +8,20 @@ import unittest
 import shutil
 from Queue import Queue
 
-import logdogs
+from logdogs import LogDogs
 
 # create object and set attributes: https://stackoverflow.com/a/2827664/6088837
 class Config(object):
     def __init__(self, **kargs):
         self.LOG_FILE = 'logdogs.log'
         self.LOG_LEVEL = 'DEBUG'
+        self.INTEVAL = 0.1 # not used
         for k, v in kargs.items():
             setattr(self, k, v)
 
 class TestFunction(unittest.TestCase):
 
     def setUp(self):
-        reload(logdogs)
         self.q = Queue()
         self.rm('logdogs.log')
         self.rm('a.log')
@@ -62,7 +62,7 @@ class TestFunction(unittest.TestCase):
             }
         )
         f = self.open('a.log')
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         f.write('hello world\n')
         logdogs.process()
@@ -92,7 +92,7 @@ class TestFunction(unittest.TestCase):
         )
         f = self.open('a.log')
         f.write('you are on a wrong way\n')
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         f.write('hello world\n')
         logdogs.process()
@@ -117,7 +117,7 @@ class TestFunction(unittest.TestCase):
             }
         )
         f = self.open('a.log')
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         f.write('something wrong\n')
         logdogs.process()
@@ -151,7 +151,7 @@ class TestFunction(unittest.TestCase):
         )
         f1 = self.open('a.log')
         f2 = self.open('b.log')
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         f1.write('something wrong\n')
         f2.write('whats wrong\n')
@@ -179,7 +179,7 @@ class TestFunction(unittest.TestCase):
             }
         )
         f = self.open('a.log')
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         f.write('an error\n')
         logdogs.process()
@@ -211,7 +211,7 @@ class TestFunction(unittest.TestCase):
                 }
             }
         )
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         # create file after watch
         f = self.open('a.log')
@@ -234,7 +234,7 @@ class TestFunction(unittest.TestCase):
                 }
             }
         )
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         # create file after watch
         f1 = self.open('a.log')
@@ -259,7 +259,7 @@ class TestFunction(unittest.TestCase):
         )
         os.makedirs('logs')
         f1 = self.open('logs/a.log')
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         f1.write('something wrong\n')
         logdogs.process()
@@ -290,7 +290,7 @@ class TestFunction(unittest.TestCase):
         os.makedirs('logs/c')
         fa = self.open('logs/a.log')
         fb = self.open('logs/b/b.log')
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         fa.write('something wrong\n')
         logdogs.process()
@@ -329,7 +329,7 @@ class TestFunction(unittest.TestCase):
         )
         # create an empty file or truncate if it exists
         f = self.open('a.log')
-        logdogs.init(config)
+        logdogs = LogDogs(config)
 
         f.write('something w')
         logdogs.process()
