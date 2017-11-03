@@ -1,13 +1,16 @@
-# a multiple logs monitor
+# logdogs
 
-Logs are checked periodically by dogs in the backgroup. Lines match the keyword patterns are processed by user defined handler.
+A daemon to monitor keywords in any log files specified by glob pattern.
+
+In the background log files are checked periodically by dogs and user defined handlers are called when error lines are detected according the keyword regex.
+
 
 ## features
 * glob path
 * regex keywords
-* support logrotate
-* custmize handler
-* does not require log file to exist before watch
+* compatible with logrotate
+* custmize handler function or callable object
+* log files don't have to exist before watch
 * a dog can watch multiple logs and a log can be watched by multiple dogs
 
 
@@ -24,16 +27,61 @@ stop
 ```
 kill <pid>
 ```
+pid file will be removed automatically.
 
-conf.py is your config file which contains upper case module variables as configuration. An example can be found [here](yanxurui/logdogs/blob/master/tests/conf.py). The effective variables are classified as follows:
+conf.py is your config file which contains upper case module variables as configuration. Here is an example:
+
+```
+import os
+import logging
+
+LOG_FILE = 'logdogs.log'
+LOG_LEVEL = 'INFO'
+# you can even call basicConfig to customize the log instead
+
+INTEVAL = 10 # seconds
+
+DAEMONIZE = True
+DIR = os.path.abspath('.')
+PID_FILE = 'logdogs.pid'
+STDOUT = 'logdogs.out'
+STDERR = 'logdogs.err'
+# the above 4 configurations only work when DAEMONIZE is True
+
+logger = logging.getLogger(__name__)
+
+class MyHandler(object):
+    def __init__(self):
+        self.count = 0
+
+    def __call__(self, file, lines):
+        self.count += 1
+        logger.info('...')
+        # Do whatever you want here...
+
+DOGS = {
+    "test": {
+        "paths": ["a.log", "b.log"],
+        "handler": MyHandler(),
+        "includes": [r"wrong"],
+        "excludes": [r"long"]
+    },
+    "glob": {
+        "paths": ["**/*.log"],
+        "handler": MyHandler(),
+        "includes": [r"(?!)wrong"],
+    }
+}
+
+```
+In this case, logdogs will run as a daemon process in current directory and check log files every 10 seconds. a.log and b.log will be watched both by dog test and glob. When a line containing `wrong` but not `long` is written to a.log, both dogs' handler will be called.
+
+The effective variables in config file are described as below.
 
 
 ## config
 
-### INTEVAL
-seconds for sleep between checks
-
-### dog
+### DOGS
 A Dog consists of:
 
 1. a group of log files specified by glob pattern
@@ -48,7 +96,7 @@ a handler is a function which has the following signature
 def handler(file, lines):
 	"""
 	`file` is the absolute path of the log file.
-	`lines` includes newline character(\n)
+	`lines` is a list of the lines includes newline characters(\n)
 	"""
 	pass
 ```
@@ -60,7 +108,7 @@ class Handler(object):
     default handler for log event
     """
     def __call__(self, file, lines):
-        print(line, end='')
+        print(lines)
 
 ```
 It's up to you to deal with the log line in this handler such as mailing, send to wechat and etc.
@@ -83,6 +131,9 @@ path is a list, it supports the following forms:
 * The same log file can overlap in multiple dog block
 
 
+### INTEVAL
+seconds for sleep between checks
+
 ### log
 * LOG_FILE: specify log file. logs are printed to stdout if not specified
 * LOG_LEVEL(WARNING): which log level to use
@@ -90,13 +141,10 @@ path is a list, it supports the following forms:
 
 ### daemonize
 * DAEMONIZE(False): whether to start a daemon process running in the backgroup, **the following configs only take effect when DAEMONIZE is True**
+* DIR: set the working directory, **default is `/`**
 * PID_FILE: pid file path
-* STDOUT: where to redirect stdout(pyinotify's internal log)
-* STDERR: where to redirect sterr(exception traceback)
-
-according to python-daemon:
-
-* Be cautious that `PID_FILE` `STDOUT` `STDERR` must be writtable by the current user and they are relative to root `/`
+* STDOUT: where to redirect stdout(print exception traceback for example)
+* STDERR: where to redirect sterr
 
 
 ## Development
@@ -109,3 +157,8 @@ python setup.py develop
 ```
 python -m unittest -v test_function.TestFunction
 ```
+
+### todo
+
+* more handlers
+
