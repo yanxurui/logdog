@@ -1,26 +1,29 @@
 from __future__ import print_function
-
+import os
 import logging
 
+# you can even call basicConfig to customize the log
 LOG_FILE = 'logdog.log'
 LOG_LEVEL = 'DEBUG'
+# use logger in handler
+logger = logging.getLogger(__name__)
+
+INTEVAL = 10
 
 DAEMONIZE = True
-PID_FILE = '/tmp/logdog.pid'
-STDOUT = '/tmp/logdog.out'
-STDERR = '/tmp/logdog.err'
+DIR = os.path.abspath('.')
+PID_FILE = 'logdog.pid'
+STDOUT = 'logdog.out'
+STDERR = 'logdog.err'
 
-logger = logging.getLogger(__name__)
 
 class MyHandler(object):
     def __init__(self):
         self.count = 0
 
-    def __call__(self, line, file):
-        print(line, end='')
+    def __call__(self, file, lines):
+        print(lines, end='')
         self.count += 1
-        # log to LOG_FILE
-        # logger.debug('handle %d lines' % self.count)
 
 DOGS = {
     "test": {

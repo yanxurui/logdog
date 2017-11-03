@@ -6,70 +6,100 @@ import sys
 import re
 import time
 import logging
-import importlib
+import traceback
 from collections import defaultdict
+from stat import ST_DEV, ST_INO
 
 # third party modules
 import glob2
-from glob2.fnmatch import fnmatch
-import pyinotify
+import daemon
+from daemon import pidfile
+
+# my own module
+from pyconfig import *
+
+logger = logging.getLogger(__name__)
 
 
 class Log(object):
     """
     a log file is represented by a Log object
     """
-    logs={}
+    logs_map = {} # {path: log object}
 
-    def __init__(self, path, new):
+
+    def __init__(self, path, dogs, new=False):
         self.path = path
-        self._f = open(path)
+        self.dogs = dogs
         self.total = 0
-        self._half = None
-        self.logs[path] = self
+        self.half = None
+        self.old = False
+        self.f = open(path)
+        sres = os.fstat(self.f.fileno())
+        self.dev, self.ino = sres[ST_DEV], sres[ST_INO]
+        self.logs_map[path] = self
+        
         if new:
-            # if the log file is newly created, write events are missed before watch the file 
+            # process all logs if the log file is newly created
             self.process()
         else:
             # ignore old logs
-            self._f.seek(0, 2) # seek to the end
+            self.f.seek(0, 2) # seek to the end
 
     def __repr__(self):
-        return '<%s path=%s, pos=%d>' % (self.__class__.__name__, self.path, self._f.tell())
+        return '<%s path=%s, dogs=%s>' % (self.__class__.__name__, self.path, self.dogs)
 
-    def read(self):
+    def readlines(self):
         """
-        a generator for read line
+        tail all lines since last time
         """
+        lines = []
         while True:
-            line = self._f.readline() # Retain newline. Return empty string at EOF
+            line = self.f.readline() # Retain newline. Return empty string at EOF
             if line:
-                if self._half:
-                    line = self._half + line
-                    self._half = None
+                if self.half:
+                    line = self.half + line
+                    self.half = None
                 if line.endswith('\n'):
-                    yield line
+                    lines.append(line)
                 else:
                     # read half line
-                    self._half = line
+                    self.half = line
                     break
             else:
                 # reach the end of the file
-                # in case there is line without newline character
-                if self._half:
-                    yield self._half
                 break
+        return lines
 
     def process(self):
         """
         log file has been changed, call dogs to process line by line
         """
-        i = 0
-        for line in self.read():
-            i += 1
-            Dog.process(self.path, line)
-        self.total += i
-        logger.info('%s process %d/%d lines' % (self, i, self.total))
+        lines = self.readlines()
+        self.total += len(lines)
+        logger.debug('%s process %d/%d lines' % (self, len(lines), self.total))
+        if lines:
+            for dog in self.dogs:
+                dog.process(self.path, lines)
+
+        if self.old and len(lines) == 0:
+            del self.logs[self.path]
+            return
+
+        # check rotate
+        try:
+            # stat the file by path, checking for existence
+            sres = os.stat(self.path)
+        except OSError as err:
+            if err.errno == errno.ENOENT:
+                sres = None
+            else:
+                logger.error('\n'+traceback.format_exc())
+        if not sres or sres[ST_DEV] != self.dev or sres[ST_INO] != self.ino:
+            logger.warn('%s is moved' % self)
+            self.old = True
+            del self.logs_map[self.path]
+            self.logs_map[self.path+'-unknow-path'] = self
 
 
 class Filter(object):
@@ -103,8 +133,8 @@ class Handler(object):
     """
     default handler for log event
     """
-    def __call__(self, line, file):
-        print(line, end='')
+    def __call__(self, file, lines):
+        print(lines, end='')
 
 
 class Dog(object):
@@ -114,190 +144,107 @@ class Dog(object):
     2. a filter defined by includes and excludes
     3. a handler function or a callable object
     """
-    dogs=defaultdict(set)
+    dogs = []
+    dogs_map = defaultdict(set) # {path: set([dog object])}
 
     def __init__(self, name, paths, handler=Handler(), includes=[], excludes=[]):
         self.name = name
-        self.paths = []
+        self.paths = paths
         self.filter = Filter(includes, excludes)
         self.handler = handler
+        self.dogs.append(self)
+        self.watch(True)
 
-        for path in paths:
-            path = os.path.abspath(path)
-            # pyinotify's daemon process will chdir to /
-            # so it's necessary to save abspath which is relative to the current directory
-            self.paths.append(path)
-            if glob2.has_magic(path):
-                # for glob pattern
-                # list files which match the pattern
-                for file in glob2.iglob(path):
-                    self.dogs[file].add(self)
-                # also watch the longest non-magic path
-                while True:
-                    path, _ = os.path.split(path)
-                    if not glob2.has_magic(path):
-                        break
-            else:
-                # for normal file
-                assert not os.path.isdir(path), 'should not be a directory'
-                # if the file does not exist, watch the directory instead
-            while not os.path.exists(path):
-                path, _ = os.path.split(path)
-            self.dogs[path].add(self)
+    def watch(self, init=False):
+        for path in self.paths:
+            for file in glob2.iglob(path):
+                self.dogs_map[path].add(self)
+                if file not in Log.logs_map:
+                    logger.info('%s watch %s' % (self, file))
+                    if init:
+                        Log(file, self.dogs_map[path])
+                    else:
+                        Log(file, self.dogs_map[path], new=True)
 
     def __repr__(self):
-        return '<%s name=%s, paths=%s, filter=%s, handler=%s>' % (self.__class__.__name__, self.name, self.paths, self.filter, self.handler)
+        return '<%s name=%s>' % (self.__class__.__name__, self.name)
 
-    @classmethod
-    def watchall(cls):
-        for path in cls.dogs.keys():
-            cls.watch(path)
-
-    @classmethod
-    def watch(cls, path, new=False):
-        """
-        watch file or directory
-        """
-        assert os.path.exists(path)
-        if os.path.isfile(path):
-            logger.info('watch file %s' % path)
-            # if file is newly created, it's safer to watch first then create log
-            wm.add_watch(path, pyinotify.IN_MODIFY | pyinotify.IN_MOVE_SELF)
-            log = Log(path, new)
-            logger.debug('log: %s' % log)
-        else:
-            logger.info('watch directory %s' % path)
-            wdd = wm.add_watch(path, pyinotify.IN_CREATE, rec=True)
-            for p in wdd.keys():
-                cls.dogs[p] = cls.dogs[path]
-
-    @classmethod
-    def create(cls, path, pathname):
-        """
-        a new file/sub-directory is created
-        path is the directory being watched
-        """
-        assert path in cls.dogs
-        if os.path.isdir(pathname):
-            cls.dogs[pathname] = cls.dogs[path]
-            cls.watch(pathname)
-            # the files created in this directory are missed before the directory being watched
-            # so add them to watch recursively here
-            for name in os.listdir(pathname):
-                cls.create(pathname, os.path.join(pathname, name))
-        else:
-            if pathname not in cls.dogs:
-                # has not been watched before
-                for dog in cls.dogs[path]:
-                    for path in dog.paths:
-                        if fnmatch(pathname, path):
-                            cls.dogs[pathname].add(dog)
-                if pathname in cls.dogs:
-                    logger.debug('watched by %s' % cls.dogs[pathname])
-                else:
-                    # does not match glob pattern
-                    logger.info('%s does not match any pattern' % pathname)
-                    return
-
-            # there are 2 cases:
-            # 1. old file is moved and a new file is created
-            #   - in this case the old log object is replaced
-            # 2. log file is created for the first time
-            cls.watch(pathname, True)
-
-    @classmethod
-    def delete(cls, pathname):
-        """
-        file being watched is deleted
-        if the parent directory exists and not being watched then watch it
-        """
-        directory = os.path.dirname(pathname)
-        if os.path.isdir(directory) and directory not in cls.dogs:
-            cls.dogs[directory] = cls.dogs[pathname]
-            cls.watch(directory)
-
-    @classmethod
-    def process(cls, pathname, line):
-        """
-        a new line has been appended to the log file
-        """
-        for dog in cls.dogs[pathname]:
-            if dog.filter(line):
-                dog.handler(line, pathname)
+    def process(self, pathname, lines):
+        lines = filter(self.filter, lines)
+        logger.info('%s process %d lines of %s' % (self, len(lines), pathname))
+        if lines:
+            self.handler(pathname, lines)
 
 
-class EventHandler(pyinotify.ProcessEvent):
-    """
-    event handler for pyinotify
-    """
-    def process_IN_CREATE(self, event):
-        logger.debug('CREATE %s' % event)
-        Dog.create(event.path, event.pathname)
+# count is for the sake of test
+count = 0
+def process():
+    global count
+    count += 1
+    logger.info('loop %d' % count)
 
-    def process_IN_MODIFY(self, event):
-        logger.debug('MODIFY %s' % event)
-        log = Log.logs[event.pathname]
+    for log in Log.logs_map.values():
         log.process()
+    for dog in Dog.dogs:
+        dog.watch()
 
-    def process_IN_MOVE_SELF(self, event):
-        """
-        log rotate triggers this event
-        just remove the watch for now
-        """
-        logger.debug('MOVE_SELF %s' % event)
-        wm.rm_watch(event.wd)
-        Dog.delete(event.pathname)
-
-
-# global(module) variable
-logger = logging.getLogger(__name__)
-wm = pyinotify.WatchManager()
-handler = EventHandler()
-notifier = pyinotify.Notifier(wm, handler)
-
-
-def load_config():
-    config = None
-    if len(sys.argv) == 3:
-        if sys.argv[1] == '-c':
-            config = sys.argv[2]
-            if os.path.exists(sys.argv[2]):
-                sys.path.insert(1, os.path.dirname(os.path.abspath(config)))
-                return importlib.import_module(os.path.splitext(os.path.basename(config))[0])
-    return None
-
-
-def main(config):
-    daemonize = getattr(config, 'DAEMONIZE', False)
-
+def init(config):
     # config log
     # if filename is None, log to standard output
     logging.basicConfig(
-        filename=getattr(config, 'LOG_FILE', None),
+        filename=config.LOG_FILE,
         format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s',
-        level=getattr(logging, getattr(config, 'LOG_LEVEL', 'WARNING'))
+        level=getattr(logging, config.LOG_LEVEL, 'WARNING')
     )
 
-    logger.info('init dogs')
-
+    logger.info('start from %s' % os.path.abspath('.'))
     for name, attrs in config.DOGS.items():
         Dog(name, **attrs)
-    Dog.watchall()
 
-    # block...
-    logger.info('start loop')
-    notifier.loop(
-        daemonize=daemonize,
-        pid_file=getattr(config, 'PID_FILE', None),
-        stdout=getattr(config, 'STDOUT', '/dev/null'),
-        stderr=getattr(config, 'STDERR', '/dev/null')
-    )
-    logger.warn('exit')
+def loop(inteval):
+    # infinite loop
+    while True:
+        time.sleep(config.INTEVAL)
+        try:
+            process()
+        except:
+            logger.error('\n'+traceback.format_exc())
+
+def main(config):
+    if config.DAEMONIZE:
+        pid, stdout, stderr = None, None, None
+        if config.PID_FILE:
+            pid = pidfile.TimeoutPIDLockFile(config.PID_FILE, 3)
+        if config.STDOUT:
+            stdout = open(config.STDOUT, 'a')
+        if config.STDERR:
+            stderr = open(config.STDOUT, 'a')
+        context = daemon.DaemonContext(
+            working_directory=config.DIR,
+            pidfile=pid,
+            stdout=stdout,
+            stderr=stderr)
+        context.open()
+    
+    init(config)
+    loop(config.INTEVAL)
 
 
 if __name__ == '__main__':
-    config = load_config()
-    if not config:
+    if len(sys.argv) == 3 and sys.argv[1] == '-c':
+        config_path = sys.argv[2]
+        config = Config(
+            config_path,
+            Field('LOG_FILE'),
+            Field('LOG_LEVEL', default='WARNING'),
+            Field('INTEVAL', types=int, default=10),
+            Field('DAEMONIZE', types=bool, default=False),
+            Field('PID_FILE'),
+            Field('STDOUT'),
+            Field('STDERR'),
+            Field('DOGS', types=dict, required=True)
+        )
+    else:
         # best way to exit script: https://stackoverflow.com/a/19747562/6088837
         # exit status will be one
         sys.exit('Usage: python -m logdog -c your-config.py')

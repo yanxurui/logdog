@@ -1,7 +1,8 @@
-# a realtime logs monitor
+# a multiple logs monitor
+
+Logs are checked periodically by dogs in the backgroup. Lines match the keyword patterns are processed by user defined handler.
 
 ## features
-* real time(powered by [Pyinotify](https://github.com/seb-m/pyinotify))
 * glob path
 * regex keywords
 * support logrotate
@@ -23,10 +24,16 @@ python2.7 -m logdog -c conf.py
 ```
 stop
 ```
-kill -s SIGINT <pid>
+kill <pid>
 ```
 
 conf.py is your config file which contains upper case module variables as configuration. An example can be found [here](yanxurui/logdog/blob/master/tests/conf.py). The effective variables are classified as follows:
+
+
+## config
+
+### INTEVAL
+seconds for sleep between checks
 
 ### dog
 A Dog consists of:
@@ -40,10 +47,10 @@ DOG is a dict in the form of `{name: attribute}` where `name` is not important a
 #### handler
 a handler is a function which has the following signature
 ```
-def handler(line, file):
+def handler(file, lines):
 	"""
-	`line` includes newline character(\n)
 	`file` is the absolute path of the log file.
+	`lines` includes newline character(\n)
 	"""
 	pass
 ```
@@ -54,12 +61,11 @@ class Handler(object):
     """
     default handler for log event
     """
-    def __call__(self, line, file):
+    def __call__(self, file, lines):
         print(line, end='')
 
 ```
-It's up to you to deal with the log line in this handler such as mailing, send to wechat and etc. It's a bad idea to do time consuming tasks here because it will delay other other logs' handling even though it won't cause write event missing.
-
+It's up to you to deal with the log line in this handler such as mailing, send to wechat and etc.
 
 #### includes & excludes
 They are regular expressions and both are optional.
@@ -90,10 +96,9 @@ path is a list, it supports the following forms:
 * STDOUT: where to redirect stdout(pyinotify's internal log)
 * STDERR: where to redirect sterr(exception traceback)
 
-according to pyinotify:
+according to python-daemon:
 
 * Be cautious that `PID_FILE` `STDOUT` `STDERR` must be writtable by the current user and they are relative to root `/`
-* `STDOUT` and `STDERR` should not be the same file otherwise they will overwrite each other.
 
 
 ## Development
@@ -104,12 +109,5 @@ python setup.py develop
 
 ### test
 ```
-python2.7 -m unittest -v test_function
-```
-
-### benchmark
-```
-cd tests
-chmod +x benchmark.sh
-./benchmark.sh
+python -m unittest -v test_function.TestFunction
 ```

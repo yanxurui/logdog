@@ -6,7 +6,7 @@ from time import sleep
 import signal
 import unittest
 import shutil
-from multiprocessing import Process, Queue
+from Queue import Queue
 
 import logdog
 
@@ -21,24 +21,15 @@ class Config(object):
 class TestFunction(unittest.TestCase):
 
     def setUp(self):
+        reload(logdog)
         self.q = Queue()
         self.rm('logdog.log')
         self.rm('a.log')
         self.rm('b.log')
         self.rm('logs')
-        print()
 
     def tearDown(self):
-        self.assertTrue(self.p.is_alive())
-        #Ctrl-c
-        os.kill(self.p.pid, signal.SIGINT)
         self.assertTrue(self.q.empty())
-
-    def start(self, config):
-        p = Process(target=logdog.main, args=(config,))
-        p.start()
-        self.p = p
-        sleep(0.1)
 
     def rm(self, path):
         if os.path.isfile(path):
@@ -46,16 +37,14 @@ class TestFunction(unittest.TestCase):
         elif os.path.isdir(path):
             shutil.rmtree(path)
 
-    def handler(self, line, file):
-        # print(line, end='')
-        self.q.put(line)
+    def handler(self, file, lines):
+        # print(lines)
+        self.q.put(lines)
 
     def open(self, path):
+        # w: create an empty file or truncate if it exists
+        # 0: not bufferring
         return open(path, 'w', 0)
-
-    def write(self, f, s):
-        f.write(s)
-        sleep(.2)
 
 
     def test_1_file(self):
@@ -72,17 +61,19 @@ class TestFunction(unittest.TestCase):
                 }
             }
         )
-        # create an empty file or truncate if it exists
         f = self.open('a.log')
-        self.start(config)
+        logdog.init(config)
 
-        self.write(f, 'hello world\n')
+        f.write('hello world\n')
+        logdog.process()
         self.assertTrue(self.q.empty())
 
-        self.write(f, 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        f.write('something wrong\nwhats wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n', 'whats wrong\n'])
 
-        self.write(f, 'a long wrong answer\n')
+        f.write('a long wrong answer\n')
+        logdog.process()
         self.assertTrue(self.q.empty())
 
 
@@ -101,18 +92,20 @@ class TestFunction(unittest.TestCase):
         )
         f = self.open('a.log')
         f.write('you are on a wrong way\n')
-        self.start(config)
+        logdog.init(config)
 
-        self.write(f, 'hello world\n')
+        f.write('hello world\n')
+        logdog.process()
         self.assertTrue(self.q.empty())
 
-        self.write(f, 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        f.write('something wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
 
 
     def test_rotate(self):
         """
-        the simplest case
+        log file is moved and a new one is created
         """
         config = Config(
             DOGS = {
@@ -124,22 +117,23 @@ class TestFunction(unittest.TestCase):
             }
         )
         f = self.open('a.log')
-        self.start(config)
+        logdog.init(config)
 
-        self.write(f, 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        f.write('something wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
 
         shutil.move('a.log', 'b.log')
-        self.write(f, 'whats wrong\n')
-        # it's a problem in some cases for example:
+        f.write('whats wrong\n')
         # nginx will still log to old log file before reopen signal is handled
-        # the last few logs are missing
-        self.assertTrue(self.q.empty())
+        # in some cases the last few logs are missing
 
-        # write to new file
+        # write to new file immediately
         f = self.open('a.log')
-        self.write(f, 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        f.write('all is wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['whats wrong\n'])
+        self.assertEqual(self.q.get_nowait(), ['all is wrong\n'])
 
 
     def test_2_files(self):
@@ -157,13 +151,13 @@ class TestFunction(unittest.TestCase):
         )
         f1 = self.open('a.log')
         f2 = self.open('b.log')
-        self.start(config)
+        logdog.init(config)
 
-        self.write(f1, 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
-
-        self.write(f2, 'whats wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'whats wrong\n')
+        f1.write('something wrong\n')
+        f2.write('whats wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
+        self.assertEqual(self.q.get_nowait(), ['whats wrong\n'])
 
 
     def test_overlap(self):
@@ -185,20 +179,23 @@ class TestFunction(unittest.TestCase):
             }
         )
         f = self.open('a.log')
-        self.start(config)
+        logdog.init(config)
 
-        self.write(f, 'an error\n')
-        self.assertEqual(self.q.get_nowait(), 'an error\n')
+        f.write('an error\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['an error\n'])
 
-        self.write(f, 'a warning\n')
-        self.assertEqual(self.q.get_nowait(), 'a warning\n')
+        f.write('a warning\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['a warning\n'])
 
         self.assertTrue(self.q.empty())
 
-        self.write(f, 'something wrong\n')
+        f.write('something wrong\n')
+        logdog.process()
         # received 2 times
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
 
 
     def test_not_exists(self):
@@ -214,13 +211,14 @@ class TestFunction(unittest.TestCase):
                 }
             }
         )
-        self.start(config)
+        logdog.init(config)
 
         # create file after watch
         f = self.open('a.log')
 
-        self.write(f, 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        f.write('something wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
 
 
     def test_2_not_exists(self):
@@ -236,12 +234,13 @@ class TestFunction(unittest.TestCase):
                 }
             }
         )
-        self.start(config)
+        logdog.init(config)
 
         # create file after watch
         f1 = self.open('a.log')
-        self.write(f1, 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        f1.write('something wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
         # q must be empty now
 
 
@@ -260,15 +259,17 @@ class TestFunction(unittest.TestCase):
         )
         os.makedirs('logs')
         f1 = self.open('logs/a.log')
-        self.start(config)
+        logdog.init(config)
 
-        self.write(f1, 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        f1.write('something wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
 
         f2 = self.open('logs/b.log')
 
-        self.write(f2, 'whats wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'whats wrong\n')
+        f2.write('whats wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['whats wrong\n'])
 
 
     def test_glob_recursively(self):
@@ -289,24 +290,28 @@ class TestFunction(unittest.TestCase):
         os.makedirs('logs/c')
         fa = self.open('logs/a.log')
         fb = self.open('logs/b/b.log')
-        self.start(config)
+        logdog.init(config)
 
-        self.write(fa, 'something wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        fa.write('something wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
 
-        self.write(fb, 'you are wrong\n')
-        self.assertEqual(self.q.get_nowait(), 'you are wrong\n')
+        fb.write('you are wrong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['you are wrong\n'])
 
         # create a new log file
         fc = self.open('logs/c/c.log')
-        self.write(fc, 'Am I wrong?\n')
-        self.assertEqual(self.q.get_nowait(), 'Am I wrong?\n')
+        fc.write('Am I wrong?\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['Am I wrong?\n'])
 
         # create a new sub-directory
         os.makedirs('logs/d')
         fd = self.open('logs/d/d.log')
-        self.write(fd, 'wrong! wrong! wrong!\n')
-        self.assertEqual(self.q.get_nowait(), 'wrong! wrong! wrong!\n')
+        fd.write('wrong! wrong! wrong!\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['wrong! wrong! wrong!\n'])
 
 
     def test_half_line(self):
@@ -324,43 +329,13 @@ class TestFunction(unittest.TestCase):
         )
         # create an empty file or truncate if it exists
         f = self.open('a.log')
-        self.start(config)
+        logdog.init(config)
 
-        self.write(f, 'something w')
+        f.write('something w')
+        logdog.process()
         self.assertTrue(self.q.empty())
 
-        self.write(f, 'rong\n')
-        self.assertEqual(self.q.get_nowait(), 'something wrong\n')
+        f.write('rong\n')
+        logdog.process()
+        self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
 
-
-    def test_slow_handler(self):
-        """
-        a handler takes long time to complete
-        """
-        def handler(line, file):
-            # print(line, end='')
-            sleep(1)
-            self.q.put(line)
-
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['a.log'],
-                    'includes': ['wrong'],
-                    'handler': handler
-                }
-            }
-        )
-        # create an empty file or truncate if it exists
-        f = self.open('a.log')
-        self.start(config)
-
-        # trigger 2 MODIFY events, the 1st process all lines
-        self.write(f, 'wrong\n')
-        f.write('something wrong\n')
-        f.write('something wrong\n')
-        f.write('something wrong\n')
-
-        sleep(4.1)
-        for i in range(4):
-            self.q.get()
