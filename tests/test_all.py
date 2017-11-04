@@ -6,7 +6,9 @@ from time import sleep
 import logging
 import unittest
 import shutil
-
+import subprocess
+import signal
+import collections
 
 if sys.version_info[0] > 2:
     from queue import Queue
@@ -21,9 +23,75 @@ logging.basicConfig(
     level=logging.DEBUG
 )
 
+class Common(object):
+    def rm(self, path):
+        if os.path.isfile(path):
+            os.remove(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
 
-class TestFunction(unittest.TestCase):
+    def see(self, file, keywords):
+        """check the file for keyword in the given order
 
+        [description]
+
+        Arguments:
+            file {str} -- [log file or outptu file]
+            keywords {list(str)} -- [keywords in their occurence order]
+        """
+        if not type(keywords) in(list, tuple):
+            keywords = [keywords]
+        with open(file) as f:
+            i = 0
+            for line in f:
+                if keywords[i] in line:
+                    i += 1
+                    if not i < len(keywords):
+                        break
+            self.assertEqual(i, len(keywords))
+
+    def sh(self, cmd, ok=True, out=None):
+        """execute a command and wait for process to terminate
+
+        [description]
+
+        Arguments:
+            cmd {str} -- command to execute
+
+        Keyword Arguments:
+            ok {bool} -- [returncode is 0?] (default: {True})
+            out {str} -- [look for this str in the stdout or stderr] (default: {None})
+        """
+        # print(cmd)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        if ok:
+            self.assertEqual(p.returncode, 0)
+        else:
+            self.assertNotEqual(p.returncode, 0)
+        if out:
+            self.assertIn(out, stdout+stderr)
+
+    def pgrep(self, cmd):
+        """a wrapper of pgrep command
+
+        [description]
+
+        Arguments:
+            cmd {str} -- [full command name]
+
+        """
+        cmd = ['pgrep', '-f', cmd]
+        # print(' '.join(cmd))
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        rc = p.wait()
+        if rc == 0:
+            stdout, stderr = p.communicate()
+            pids = stdout.decode().strip().split('\n')
+            return pids
+
+
+class TestFunction(unittest.TestCase, Common):
     def setUp(self):
         # opened files
         self.files = []
@@ -37,12 +105,6 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(self.q.empty())
         for f in self.files:
             f.close()
-
-    def rm(self, path):
-        if os.path.isfile(path):
-            os.remove(path)
-        elif os.path.isdir(path):
-            shutil.rmtree(path)
 
     def handler(self, file, lines):
         # print(lines)
@@ -331,4 +393,38 @@ class TestFunction(unittest.TestCase):
         self.write(f, 'rong\n')
         logdogs.process()
         self.assertEqual(self.q.get_nowait(), ['something wrong\n'])
+
+
+class TestAcceptance(unittest.TestCase, Common):
+    def setUp(self):
+        if os.path.isfile('logdogs.pid'):
+            with open('logdogs.pid') as f:
+                os.kill(int(f.read()), signal.SIGTERM)
+        self.rm('logdogs.log')
+        self.rm('logdogs.out')
+        self.rm('logdogs.err')
+        self.rm('logdogs.pid')
+        self.rm('a.log')
+        self.rm('b.log')
+        self.rm('logs')
+
+    def test_example(self):
+        cmd = 'python example.py'
+        self.sh(cmd)
+        pid = self.pgrep(cmd)[0]
+        self.see('logdogs.pid', pid)
+        self.see('logdogs.log', ['start from'])
+        sleep(6)
+        self.see('logdogs.log', 'loop 1')
+        self.see('logdogs.log', 'process 0 lines of logdogs.log')
+
+        self.sh('echo wrong >> a.log')
+        sleep(5)
+        self.see('logdogs.log', 'loop 2')
+        self.see('logdogs.log', ['process 1 lines of a.log', 'process 1 lines of a.log'])
+
+        self.sh('kill %s' % pid)
+        sleep(.1)
+        self.see('logdogs.err', 'Terminating on signal 15')
+        self.see('logdogs.log', 'close files')
 

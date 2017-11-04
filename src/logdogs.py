@@ -227,15 +227,18 @@ class LogDogs(object):
             self.do_process(log)
         for log in list(self.old_logs_map.values()):
             self.do_process(log)
+        new_logs = []
         for dog in self.dogs:
             for file in dog.files():
                 if dog not in self.dogs_map[file]:
                     self.dogs_map[file].add(dog)
                 if file not in self.logs_map:
+                    # process all logs if the log file is newly created
                     log = Log(file, self.dogs_map[file], new=True)
                     self.logs_map[file] = log
-                    # process all logs if the log file is newly created
-                    self.do_process(log)
+                    new_logs.append(log)
+        for log in new_logs:
+            self.do_process(log)
 
     def run(self, inteval, daemon=False, pid=None, stdout=None, stderr=None, **kargs):
         """
@@ -244,7 +247,7 @@ class LogDogs(object):
         """
         if daemon:
             if pid:
-                pid = pidfile.TimeoutPIDLockFile(pid, 3)
+                pid = pidfile.TimeoutPIDLockFile(pid, 1)
             if stdout:
                 stdout = open(stdout, 'a')
             if stderr:

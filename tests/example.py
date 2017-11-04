@@ -41,7 +41,7 @@ DOGS = {
 
 logdogs = LogDogs(DOGS)
 logdogs.run(
-    10,
+    5,
     daemon=True,
     pid='logdogs.pid',
     stdout='logdogs.out',
