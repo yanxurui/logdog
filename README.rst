@@ -4,7 +4,13 @@ logdogs
 .. image:: https://img.shields.io/travis/yanxurui/logdogs/master.svg
     :target: https://travis-ci.org/yanxurui/logdogs
 
+.. image:: https://img.shields.io/pypi/v/logdogs.svg
+    :target: https://pypi.org/project/logdogs
+
 .. image:: https://img.shields.io/pypi/pyversions/logdogs.svg
+    :target: https://pypi.org/project/logdogs
+
+.. image:: https://img.shields.io/pypi/status/logdogs.svg
     :target: https://pypi.org/project/logdogs
 
 
@@ -198,3 +204,5 @@ todo
 ~~~~
 
 -  more handlers
+-  ~~python3~~
+-  threading

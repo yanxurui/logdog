@@ -11,6 +11,7 @@ import re
 import time
 import logging
 import traceback
+import atexit
 from collections import defaultdict
 from stat import ST_DEV, ST_INO
 
@@ -88,7 +89,7 @@ class Log(object):
             else:
                 logger.error('\n'+traceback.format_exc())
         if not sres or sres[ST_DEV] != self.dev or sres[ST_INO] != self.ino:
-            logger.warn('%s is moved' % self)
+            logger.warning('%s is moved' % self)
             self.old = True
         # return number of rows
         return len(lines)
@@ -167,7 +168,7 @@ class Dog(object):
         """
         process the new lines from a file in a loop
         """
-        lines = filter(self.filter, lines)
+        lines = list(filter(self.filter, lines))
         logger.info('%s process %d lines of %s' % (self, len(lines), pathname))
         if lines:
             self.handler(pathname, lines)
@@ -184,6 +185,9 @@ class LogDogs(object):
         self.old_logs_map = {} # {path: log object}
         self.dogs = []
         self.dogs_map = defaultdict(set) # {path: set([dog object])}
+
+        # a dirty way to avoid `ResourceWarning: unclosed file` in python3
+        atexit.register(self.terminate)
 
         # config log
         # if filename is None, log to standard output
@@ -213,7 +217,7 @@ class LogDogs(object):
         n = log.process()
         if old and n == 0:
             # there is no more log so remove it
-            logger.warn('remove %s' % log)
+            logger.warning('remove %s' % log)
             self.old_logs_map[log.path].close()
             del self.old_logs_map[log.path]
         elif log.old:
@@ -231,9 +235,9 @@ class LogDogs(object):
         self.count += 1
         logger.info('loop %d' % self.count)
 
-        for log in self.logs_map.values():
+        for log in list(self.logs_map.values()):
             self.do_process(log)
-        for log in self.old_logs_map.values():
+        for log in list(self.old_logs_map.values()):
             self.do_process(log)
         for dog in self.dogs:
             for file in dog.files():
@@ -255,6 +259,11 @@ class LogDogs(object):
                 self.process()
             except:
                 logger.error('\n'+traceback.format_exc())
+
+    def terminate(self):
+        logger.info('close files')
+        for log in self.logs_map.values():
+            log.close()
 
 
 def main():
@@ -292,7 +301,6 @@ def main():
             stdout=stdout,
             stderr=stderr)
         context.open()
-
     # start logdogs
     logdogs = LogDogs(config)
     logdogs.run()

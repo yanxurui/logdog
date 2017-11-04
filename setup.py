@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="logdogs",
-    version="0.2rc1",
+    version="0.2rc2",
     author="Xurui Yan",
     author_email="yxr1993@gmail.com",
     description='A daemon to monitor keywords in any log files specified by glob pattern',
@@ -26,7 +26,8 @@ setup(
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
         'Operating System :: Unix',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 3',
         'Environment :: Console',
         'Topic :: Utilities'
     ]
