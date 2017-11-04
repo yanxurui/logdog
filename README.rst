@@ -204,5 +204,4 @@ todo
 ~~~~
 
 -  more handlers
--  ~~python3~~
 -  threading
