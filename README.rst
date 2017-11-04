@@ -38,36 +38,26 @@ install::
 
     pip install logdogs
 
-start::
 
-    logdogs -c conf.py
-
-stop::
-
-    kill <pid>
-
-pid file will be removed automatically.
-
-conf.py is your config file which contains upper case module variables
-as configuration. Here is an example:
+Here is an example:
 
 .. code:: python
+
+    #!/usr/bin/env
+    # coding=utf-8
 
     import os
     import logging
 
-    LOG_FILE = 'logdogs.log'
-    LOG_LEVEL = 'INFO'
-    # you can even call basicConfig to customize the log instead
+    from logdogs import LogDogs
 
-    INTEVAL = 10 # seconds
-
-    DAEMONIZE = True
-    DIR = os.path.abspath('.')
-    PID_FILE = 'logdogs.pid'
-    STDOUT = 'logdogs.out'
-    STDERR = 'logdogs.err'
-    # the above 4 configurations only work when DAEMONIZE is True
+    # config log
+    # if ommitted, log to standard output
+    logging.basicConfig(
+        filename='logdogs.log',
+        format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s',
+        level=logging.INFO
+    )
 
     logger = logging.getLogger(__name__)
 
@@ -90,22 +80,32 @@ as configuration. Here is an example:
         "glob": {
             "paths": ["**/*.log"],
             "handler": MyHandler(),
-            "includes": [r"(?!)wrong"],
+            "includes": [r"wrong"],
         }
     }
+
+    logdogs = LogDogs(DOGS)
+    logdogs.run(
+        10,
+        daemon=True,
+        pid='logdogs.pid',
+        stdout='logdogs.out',
+        stderr='logdogs.err',
+        working_directory=os.path.abspath('.')
+    )
+
 
 In this case, logdogs will run as a daemon process in current directory
 and check log files every 10 seconds. a.log and b.log will be watched
 both by dog test and glob. When a line containing ``wrong`` but not
 ``nothing`` is written to a.log, both dogs' handler will be called.
 
-The effective variables in config file are described as below.
 
-config
+API
 ------
 
-DOGS
-~~~~
+``LogDogs.__init__(self, DOGS)``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A Dog consists of:
 
@@ -113,7 +113,7 @@ A Dog consists of:
 2. a filter defined by includes and excludes
 3. a handler function or a callable object
 
-DOG is a dict in the form of ``{name: attribute}`` where ``name`` is not
+DOGS is a dict in the form of ``{name: attribute}`` where ``name`` is not
 important and ``attribute`` is a dict containing the following keys:
 
 handler
@@ -162,29 +162,25 @@ path is a list, it supports the following forms:
    starts
 -  The same log file can overlap in multiple dog block
 
-INTEVAL
-~~~~~~~
+
+``LogDogs.run(self, inteval, daemon=False, pid=None, stdout=None, stderr=None, **kargs)``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+inteval
+^^^^^^^
 
 seconds for sleep between checks
 
-log
-~~~
-
--  LOG_FILE: specify log file. logs are printed to stdout if not
-   specified
--  LOG_LEVEL(WARNING): which log level to use
-
 daemonize
-~~~~~~~~~
+^^^^^^^^^
 
--  DAEMONIZE(False): whether to start a daemon process running in the
+-  daemon(False): whether to start a daemon process running in the
    backgroup, **the following configs only take effect when DAEMONIZE is
    True**
--  DIR: set the working directory, **default is /**
--  PID_FILE: pid file path
--  STDOUT: where to redirect stdout(print exception traceback for
-   example)
--  STDERR: where to redirect sterr
+-  pid: pid file path
+-  stdout: where to redirect stdout(print)
+-  stderr: where to redirect sterr(exception traceback)
+-  kargs: other keywords arguments accepted by python-daemon'sDaemonContext for example working_directory which **is / by default**
 
 Development
 -----------
@@ -198,7 +194,7 @@ test
 
 ::
 
-    python -m unittest -v test_function.TestFunction
+    python -m unittest -v test_all
 
 todo
 ~~~~

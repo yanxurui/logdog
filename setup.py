@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="logdogs",
-    version="0.2",
+    version="0.3a1",
     author="Xurui Yan",
     author_email="yxr1993@gmail.com",
     description='A daemon to monitor keywords in any log files specified by glob pattern',
@@ -11,17 +11,12 @@ setup(
     keywords="log monitor",
     url="https://github.com/yanxurui/logdogs",
     package_dir = {'': 'src'},
-    py_modules=['logdogs', 'pyconfig'],
+    py_modules=['logdogs'],
     platforms=['Linux'],
     install_requires=[
         'glob2>=0.6',
         'python-daemon>=2.1.2'
     ],
-    entry_points={
-        'console_scripts': [
-            'logdogs=logdogs:main',
-        ],
-    },
     classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',

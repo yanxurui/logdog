@@ -1,18 +1,18 @@
+#!/usr/bin/env
+# coding=utf-8
+
 import os
 import logging
 
-LOG_FILE = 'logdogs.log'
-LOG_LEVEL = 'INFO'
-# you can even call basicConfig to customize the log instead
+from logdogs import LogDogs
 
-INTEVAL = 10 # seconds
-
-DAEMONIZE = True
-DIR = os.path.abspath('.')
-PID_FILE = 'logdogs.pid'
-STDOUT = 'logdogs.out'
-STDERR = 'logdogs.err'
-# the above 4 configurations only work when DAEMONIZE is True
+# config log
+# if ommitted, log to standard output
+logging.basicConfig(
+    filename='logdogs.log',
+    format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s',
+    level=logging.INFO
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,16 @@ DOGS = {
     "glob": {
         "paths": ["**/*.log"],
         "handler": MyHandler(),
-        "includes": [r"(?!)wrong"],
+        "includes": [r"wrong"],
     }
 }
+
+logdogs = LogDogs(DOGS)
+logdogs.run(
+    10,
+    daemon=True,
+    pid='logdogs.pid',
+    stdout='logdogs.out',
+    stderr='logdogs.err',
+    working_directory=os.path.abspath('.')
+)

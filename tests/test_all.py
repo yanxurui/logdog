@@ -3,9 +3,10 @@ from __future__ import print_function
 import os
 import sys
 from time import sleep
-import signal
+import logging
 import unittest
 import shutil
+
 
 if sys.version_info[0] > 2:
     from queue import Queue
@@ -14,14 +15,12 @@ else:
 
 from logdogs import LogDogs
 
-# create object and set attributes: https://stackoverflow.com/a/2827664/6088837
-class Config(object):
-    def __init__(self, **kargs):
-        self.LOG_FILE = 'logdogs.log'
-        self.LOG_LEVEL = 'DEBUG'
-        self.INTEVAL = 0.1 # not used
-        for k, v in kargs.items():
-            setattr(self, k, v)
+logging.basicConfig(
+    filename='logdogs.log',
+    format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s',
+    level=logging.DEBUG
+)
+
 
 class TestFunction(unittest.TestCase):
 
@@ -65,18 +64,16 @@ class TestFunction(unittest.TestCase):
         """
         the simplest case
         """
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['a.log'],
-                    'includes': ['wrong'],
-                    'excludes': ['long'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test': {
+                'paths': ['a.log'],
+                'includes': ['wrong'],
+                'excludes': ['long'],
+                'handler': self.handler
             }
-        )
+        }
         f = self.open('a.log')
-        logdogs = LogDogs(config)
+        logdogs = LogDogs(DOGS)
 
         self.write(f, 'hello world\n')
         logdogs.process()
@@ -95,18 +92,16 @@ class TestFunction(unittest.TestCase):
         """
         old logs in the log file are ignored
         """
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['a.log'],
-                    'includes': ['wrong'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test': {
+                'paths': ['a.log'],
+                'includes': ['wrong'],
+                'handler': self.handler
             }
-        )
+        }
         f = self.open('a.log')
         self.write(f, 'you are on a wrong way\n')
-        logdogs = LogDogs(config)
+        logdogs = LogDogs(DOGS)
 
         self.write(f, 'hello world\n')
         logdogs.process()
@@ -121,17 +116,15 @@ class TestFunction(unittest.TestCase):
         """
         log file is moved and a new one is created
         """
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['a.log'],
-                    'includes': ['wrong'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test': {
+                'paths': ['a.log'],
+                'includes': ['wrong'],
+                'handler': self.handler
             }
-        )
+        }
         f = self.open('a.log')
-        logdogs = LogDogs(config)
+        logdogs = LogDogs(DOGS)
 
         self.write(f, 'something wrong\n')
         logdogs.process()
@@ -154,18 +147,16 @@ class TestFunction(unittest.TestCase):
         """
         a dog can watch more than 1 files
         """
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['a.log', 'b.log'],
-                    'includes': ['wrong'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test': {
+                'paths': ['a.log', 'b.log'],
+                'includes': ['wrong'],
+                'handler': self.handler
             }
-        )
+        }
         f1 = self.open('a.log')
         f2 = self.open('b.log')
-        logdogs = LogDogs(config)
+        logdogs = LogDogs(DOGS)
 
         self.write(f1, 'something wrong\n')
         self.write(f2, 'whats wrong\n')
@@ -178,22 +169,20 @@ class TestFunction(unittest.TestCase):
         """
         2 dogs can watch the same file
         """
-        config = Config(
-            DOGS = {
-                'test1': {
-                    'paths': ['a.log'],
-                    'includes': ['error', 'wrong'],
-                    'handler': self.handler
-                },
-                'test2': {
-                    'paths': ['a.log'],
-                    'includes': ['warning', 'wrong'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test1': {
+                'paths': ['a.log'],
+                'includes': ['error', 'wrong'],
+                'handler': self.handler
+            },
+            'test2': {
+                'paths': ['a.log'],
+                'includes': ['warning', 'wrong'],
+                'handler': self.handler
             }
-        )
+        }
         f = self.open('a.log')
-        logdogs = LogDogs(config)
+        logdogs = LogDogs(DOGS)
 
         self.write(f, 'an error\n')
         logdogs.process()
@@ -216,16 +205,14 @@ class TestFunction(unittest.TestCase):
         """
         log file is not required to exist before watch
         """
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['a.log'],
-                    'includes': ['wrong'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test': {
+                'paths': ['a.log'],
+                'includes': ['wrong'],
+                'handler': self.handler
             }
-        )
-        logdogs = LogDogs(config)
+        }
+        logdogs = LogDogs(DOGS)
 
         # create file after watch
         f = self.open('a.log')
@@ -239,16 +226,14 @@ class TestFunction(unittest.TestCase):
         """
         bug: the same dog watch the same path(.) twice
         """
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['a.log', 'b.log'],
-                    'includes': ['wrong'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test': {
+                'paths': ['a.log', 'b.log'],
+                'includes': ['wrong'],
+                'handler': self.handler
             }
-        )
-        logdogs = LogDogs(config)
+        }
+        logdogs = LogDogs(DOGS)
 
         # create file after watch
         f = self.open('a.log')
@@ -262,18 +247,16 @@ class TestFunction(unittest.TestCase):
         """
         glob pattern can be used in path
         """
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['logs/*.log'],
-                    'includes': ['wrong'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test': {
+                'paths': ['logs/*.log'],
+                'includes': ['wrong'],
+                'handler': self.handler
             }
-        )
+        }
         os.makedirs('logs')
         f = self.open('logs/a.log')
-        logdogs = LogDogs(config)
+        logdogs = LogDogs(DOGS)
 
         self.write(f, 'something wrong\n')
         logdogs.process()
@@ -290,21 +273,19 @@ class TestFunction(unittest.TestCase):
         """
         ** can be used in glob pattern
         """
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['logs/**/*.log'],
-                    'includes': ['wrong'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test': {
+                'paths': ['logs/**/*.log'],
+                'includes': ['wrong'],
+                'handler': self.handler
             }
-        )
+        }
 
         os.makedirs('logs/b')
         os.makedirs('logs/c')
         fa = self.open('logs/a.log')
         fb = self.open('logs/b/b.log')
-        logdogs = LogDogs(config)
+        logdogs = LogDogs(DOGS)
 
         self.write(fa, 'something wrong\n')
         logdogs.process()
@@ -332,18 +313,16 @@ class TestFunction(unittest.TestCase):
         """
         bug: half line will be read if the log is being written at the same time
         """
-        config = Config(
-            DOGS = {
-                'test': {
-                    'paths': ['a.log'],
-                    'includes': ['wrong'],
-                    'handler': self.handler
-                }
+        DOGS = {
+            'test': {
+                'paths': ['a.log'],
+                'includes': ['wrong'],
+                'handler': self.handler
             }
-        )
+        }
         # create an empty file or truncate if it exists
         f = self.open('a.log')
-        logdogs = LogDogs(config)
+        logdogs = LogDogs(DOGS)
 
         self.write(f, 'something w')
         logdogs.process()

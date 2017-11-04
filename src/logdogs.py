@@ -17,11 +17,8 @@ from stat import ST_DEV, ST_INO
 
 # third party modules
 import glob2
-import daemon
-from daemon import pidfile
+from daemon import DaemonContext, pidfile
 
-# my own module
-from pyconfig import *
 
 logger = logging.getLogger(__name__)
 
@@ -178,9 +175,8 @@ class LogDogs(object):
     """
     manager all dogs and logs
     """
-    def __init__(self, config):
+    def __init__(self, DOGS):
         self.count = 0
-        self.inteval = config.INTEVAL
         self.logs_map = {} # {path: log object}
         self.old_logs_map = {} # {path: log object}
         self.dogs = []
@@ -189,17 +185,9 @@ class LogDogs(object):
         # a dirty way to avoid `ResourceWarning: unclosed file` in python3
         atexit.register(self.terminate)
 
-        # config log
-        # if filename is None, log to standard output
-        logging.basicConfig(
-            filename=config.LOG_FILE,
-            format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d %(message)s',
-            level=getattr(logging, config.LOG_LEVEL)
-        )
-
         logger.info('start from %s' % os.path.abspath('.'))
 
-        for name, attrs in config.DOGS.items():
+        for name, attrs in DOGS.items():
             dog = Dog(name, **attrs)
             self.dogs.append(dog)
             for file in dog.files():
@@ -249,12 +237,41 @@ class LogDogs(object):
                     # process all logs if the log file is newly created
                     self.do_process(log)
 
-    def run(self):
+    def run(self, inteval, daemon=False, pid=None, stdout=None, stderr=None, **kargs):
         """
-        infinite loop
+        arguments after daemon only work when daemon is True
+        kargs are passed to python-daemon
         """
+        if daemon:
+            if pid:
+                pid = pidfile.TimeoutPIDLockFile(pid, 3)
+            if stdout:
+                stdout = open(stdout, 'a')
+            if stderr:
+                stderr = open(stderr, 'a')
+
+            # preserve files in python daemon: https://stackoverflow.com/a/13696380/6088837
+            fds = set()
+            for log in self.logs_map.values():
+                fds.add(log.f.fileno())
+            for h in logging.root.handlers:
+                if isinstance(h, logging.StreamHandler):
+                    fds.add(h.stream.fileno())
+                elif isinstance(h, logging.SyslogHandler):
+                    fds.add(h.socket.fileno())
+                else:
+                    # what else?
+                    pass
+            context = DaemonContext(
+                pidfile=pid,
+                stdout=stdout,
+                stderr=stderr,
+                files_preserve=list(fds),
+                **kargs)
+            context.open()
+
         while True:
-            time.sleep(self.inteval)
+            time.sleep(inteval)
             try:
                 self.process()
             except:
@@ -264,48 +281,4 @@ class LogDogs(object):
         logger.info('close files')
         for log in self.logs_map.values():
             log.close()
-
-
-def main():
-    # parse config
-    if len(sys.argv) == 3 and sys.argv[1] == '-c':
-        config_path = sys.argv[2]
-        config = Config(
-            config_path,
-            Field('LOG_FILE'),
-            Field('LOG_LEVEL', default='WARNING'),
-            Field('INTEVAL', types=int, default=10),
-            Field('DAEMONIZE', types=bool, default=False),
-            Field('PID_FILE'),
-            Field('STDOUT'),
-            Field('STDERR'),
-            Field('DOGS', types=dict, required=True)
-        )
-    else:
-        # best way to exit script: https://stackoverflow.com/a/19747562/6088837
-        # exit status will be one
-        sys.exit('Usage: logdogs -c your-config.py')
-
-    # start daemon
-    if config.DAEMONIZE:
-        pid, stdout, stderr = None, None, None
-        if config.PID_FILE:
-            pid = pidfile.TimeoutPIDLockFile(config.PID_FILE, 3)
-        if config.STDOUT:
-            stdout = open(config.STDOUT, 'a')
-        if config.STDERR:
-            stderr = open(config.STDOUT, 'a')
-        context = daemon.DaemonContext(
-            working_directory=config.DIR,
-            pidfile=pid,
-            stdout=stdout,
-            stderr=stderr)
-        context.open()
-    # start logdogs
-    logdogs = LogDogs(config)
-    logdogs.run()
-
-
-if __name__ == '__main__':
-    main()
 
