@@ -1,6 +1,13 @@
 logdogs
 =======
 
+.. image:: https://img.shields.io/travis/yanxurui/logdogs/master.svg
+    :target: https://travis-ci.org/yanxurui/logdogs
+
+.. image:: https://img.shields.io/pypi/pyversions/logdogs.svg
+    :target: https://pypi.org/project/logdogs
+
+
 A daemon to monitor keywords in any log files specified by glob pattern.
 
 In the background log files are checked periodically by dogs and user
