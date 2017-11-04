@@ -14,28 +14,22 @@ features
 -  regex keywords
 -  compatible with logrotate
 -  custmize handler function or callable object
--  log files don’t have to exist before watch
+-  log files don't have to exist before watch
 -  a dog can watch multiple logs and a log can be watched by multiple
    dogs
 
 usage
 -----
 
-install
-
-::
+install::
 
     pip install logdogs
 
-start
-
-::
+start::
 
     logdogs -c conf.py
 
-stop
-
-::
+stop::
 
     kill <pid>
 
@@ -78,7 +72,7 @@ as configuration. Here is an example:
             "paths": ["a.log", "b.log"],
             "handler": MyHandler(),
             "includes": [r"wrong"],
-            "excludes": [r"long"]
+            "excludes": [r"nothing"]
         },
         "glob": {
             "paths": ["**/*.log"],
@@ -90,7 +84,7 @@ as configuration. Here is an example:
 In this case, logdogs will run as a daemon process in current directory
 and check log files every 10 seconds. a.log and b.log will be watched
 both by dog test and glob. When a line containing ``wrong`` but not
-``long`` is written to a.log, both dogs’ handler will be called.
+``nothing`` is written to a.log, both dogs' handler will be called.
 
 The effective variables in config file are described as below.
 
@@ -112,20 +106,16 @@ important and ``attribute`` is a dict containing the following keys:
 handler
 ^^^^^^^
 
-a handler is a function which has the following signature
-
-::
+a handler is a function which has the following signature::
 
     def handler(file, lines):
         """
-        `file` is the absolute path of the log file.
-        `lines` is a list of the lines includes newline characters(\n)
+        file is the absolute path of the log file.
+        lines is a list of the lines includes newline characters(\n)
         """
         pass
 
-the default handler is a callable object of:
-
-::
+the default handler is a callable object of::
 
     class Handler(object):
         """
@@ -134,7 +124,7 @@ the default handler is a callable object of:
         def __call__(self, file, lines):
             print(lines)
 
-It’s up to you to deal with the log line in this handler such as
+It's up to you to deal with the log line in this handler such as
 mailing, send to wechat and etc.
 
 includes & excludes
@@ -150,10 +140,10 @@ path
 
 path is a list, it supports the following forms:
 
-1. single file: [‘/var/logs/a.log’]
-2. multiple files: [‘/var/logs/a.log’, ‘/var/logs/b.log’]
-3. glob pattern: [’/var/logs/*.log’]
-4. recursive glob (similar as globstar on bash): [’/var/logs/**/*.log’]
+1. single file: ``['/var/logs/a.log']``
+2. multiple files: ``['/var/logs/a.log', '/var/logs/b.log']``
+3. glob pattern: ``['/var/logs/*.log']``
+4. recursive glob (similar as globstar on bash): ``['/var/logs/**/*.log']``
 
 -  In the last 2 cases, a log file is not required to exist when monitor
    starts
@@ -177,7 +167,7 @@ daemonize
 -  DAEMONIZE(False): whether to start a daemon process running in the
    backgroup, **the following configs only take effect when DAEMONIZE is
    True**
--  DIR: set the working directory, **default is ``/``**
+-  DIR: set the working directory, **default is /**
 -  PID_FILE: pid file path
 -  STDOUT: where to redirect stdout(print exception traceback for
    example)

@@ -30,7 +30,7 @@ DOGS = {
         "paths": ["a.log", "b.log"],
         "handler": MyHandler(),
         "includes": [r"wrong"],
-        "excludes": [r"long"]
+        "excludes": [r"nothing"]
     },
     "glob": {
         "paths": ["**/*.log"],
