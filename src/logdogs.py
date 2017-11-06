@@ -14,6 +14,8 @@ import traceback
 import atexit
 from collections import defaultdict
 from stat import ST_DEV, ST_INO
+from email.mime.text import MIMEText
+from smtplib import SMTP, SMTP_SSL
 
 # third party modules
 import glob2
@@ -137,6 +139,50 @@ class Handler(object):
         print(lines, end='')
 
 
+class MailHandler(object):
+    def __init__(self, user, pwd, server, port=None, ssl=True, to_addrs=[]):
+        if port is None:
+            if ssl:
+                port = 465
+            else:
+                port = 25
+        self.user = user
+        self.pwd = pwd
+        self.server = server
+        self.port = port
+        self.ssl = ssl
+        self.to_addrs = to_addrs
+
+        self.create_conn()
+
+    def create_conn(self):
+        if self.ssl:
+            conn = SMTP_SSL(self.server, self.port)
+        else:
+            conn = SMTP(self.server, self.port)
+        logger.warning('connected')
+        conn.login(self.user, self.pwd)
+        self.conn = conn
+
+    def test_conn_open(self):
+        try:
+            status = self.conn.noop()[0]
+        except:  # smtplib.SMTPServerDisconnected
+            status = -1
+        return True if status == 250 else False
+
+    def sendmail(self, to_addrs, msg):
+        if not self.test_conn_open():
+            self.create_conn()
+        self.conn.sendmail(self.user, to_addrs, msg)
+
+    def __call__(self, file, lines):
+        msg = MIMEText('\n'.join(lines), 'plain')
+        msg['Subject']= '[logdogs]' + file
+        msg['From'] = self.user
+        self.sendmail(self.to_addrs, msg.as_string())
+
+
 class Dog(object):
     """
     A Dog consists of:
@@ -168,8 +214,10 @@ class Dog(object):
         lines = list(filter(self.filter, lines))
         logger.info('%s process %d lines of %s' % (self, len(lines), pathname))
         if lines:
-            self.handler(pathname, lines)
-
+            try:
+                self.handler(pathname, lines)
+            except:
+                logger.error('\n'+traceback.format_exc())
 
 class LogDogs(object):
     """

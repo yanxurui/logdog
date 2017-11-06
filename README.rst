@@ -26,7 +26,7 @@ features
 -  glob path
 -  regex keywords
 -  compatible with logrotate
--  custmize handler function or callable object
+-  custmize handler function or callable object, a MailHandler is provided
 -  log files don't have to exist before watch
 -  a dog can watch multiple logs and a log can be watched by multiple
    dogs
@@ -49,7 +49,7 @@ Here is an example:
     import os
     import logging
 
-    from logdogs import LogDogs
+    from logdogs import LogDogs, MailHandler
 
     # config log
     # if ommitted, log to standard output
@@ -79,7 +79,7 @@ Here is an example:
         },
         "glob": {
             "paths": ["**/*.log"],
-            "handler": MyHandler(),
+            "handler": MailHandler('you@example.com', 'your password', server, port=465, ssl=True, to_addrs=['receiver1@example.com']),
             "includes": [r"wrong"],
         }
     }
@@ -95,10 +95,11 @@ Here is an example:
     )
 
 
+
 In this case, logdogs will run as a daemon process in current directory
 and check log files every 10 seconds. a.log and b.log will be watched
 both by dog test and glob. When a line containing ``wrong`` but not
-``nothing`` is written to a.log, both dogs' handler will be called.
+``nothing`` is written to a.log, both dogs' handler will be called. Dog glob will send eamil to your mailbox.
 
 
 API
