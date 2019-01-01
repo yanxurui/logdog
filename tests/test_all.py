@@ -6,7 +6,7 @@ from time import sleep
 import logging
 import unittest
 import shutil
-import subprocess
+import shlex, subprocess
 import signal
 import collections
 
@@ -39,7 +39,7 @@ class Common(object):
             file {str} -- [log file or outptu file]
             keywords {list(str)} -- [keywords in their occurence order]
         """
-        if not type(keywords) in(list, tuple):
+        if not type(keywords) in (list, tuple):
             keywords = [keywords]
         with open(file) as f:
             i = 0
@@ -62,7 +62,6 @@ class Common(object):
             ok {bool} -- [returncode is 0?] (default: {True})
             out {str} -- [look for this str in the stdout or stderr] (default: {None})
         """
-        # print(cmd)
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         stdout, stderr = p.communicate()
         if ok:
@@ -81,14 +80,12 @@ class Common(object):
             cmd {str} -- [full command name]
 
         """
-        cmd = ['pgrep', '-f', cmd]
-        # print(' '.join(cmd))
+        cmd = ['pgrep', '-f'] + shlex.split(cmd)
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        rc = p.wait()
-        if rc == 0:
-            stdout, stderr = p.communicate()
-            pids = stdout.decode().strip().split('\n')
-            return pids
+        stdout, stderr = p.communicate()
+        self.assertEqual(p.returncode, 0)
+        pids = stdout.decode().strip().split('\n')
+        return pids
 
 
 class TestFunction(unittest.TestCase, Common):

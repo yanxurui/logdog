@@ -140,6 +140,9 @@ class Handler(object):
 
 
 class MailHandler(object):
+    """
+    smtp long connection: https://stackoverflow.com/a/14678470/6088837
+    """
     def __init__(self, user, pwd, server, port=None, ssl=True, to_addrs=[]):
         if port is None:
             if ssl:

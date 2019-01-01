@@ -16,8 +16,8 @@ logdogs
 
 A daemon to monitor keywords in any log files specified by glob pattern.
 
-In the background log files are checked periodically by dogs and user
-defined handlers are called when error lines are detected according the
+Log files are checked periodically in the background by dogs and user
+defined handlers are called when error lines are detected according to the
 keyword regex.
 
 features
@@ -28,8 +28,8 @@ features
 -  compatible with logrotate
 -  custmize handler function or callable object, a MailHandler is provided
 -  log files don't have to exist before watch
--  a dog can watch multiple logs and a log can be watched by multiple
-   dogs
+-  a dog can watch multiple log files and a log file can be watched by multiple
+   dogs too
 
 usage
 -----
@@ -105,8 +105,12 @@ both by dog test and glob. When a line containing ``wrong`` but not
 API
 ------
 
-``LogDogs.__init__(self, DOGS)``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``LogDogs.__init__``
+~~~~~~~~~~~~~~~~~~~~
+
+::
+
+    LogDogs.__init__(self, DOGS)
 
 A Dog consists of:
 
@@ -164,8 +168,12 @@ path is a list, it supports the following forms:
 -  The same log file can overlap in multiple dog block
 
 
-``LogDogs.run(self, inteval, daemon=False, pid=None, stdout=None, stderr=None, **kargs)``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``LogDogs.run``
+~~~~~~~~~~~~~~~~~
+
+::
+
+    LogDogs.run(self, inteval, daemon=False, pid=None, stdout=None, stderr=None, **kargs)
 
 inteval
 ^^^^^^^
