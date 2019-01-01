@@ -80,7 +80,7 @@ class Common(object):
             cmd {str} -- [full command name]
 
         """
-        cmd = ['pgrep', '-f'] + shlex.split(cmd)
+        cmd = ['pgrep', '-f', cmd] # not compatible with BSD pgrep on MacOS
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
         self.assertEqual(p.returncode, 0)
