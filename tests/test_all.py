@@ -2,13 +2,12 @@ from __future__ import print_function
 
 import os
 import sys
-from time import sleep
 import logging
 import unittest
 import shutil
-import shlex, subprocess
+import subprocess
 import signal
-import collections
+from time import sleep
 
 if sys.version_info[0] > 2:
     from queue import Queue
@@ -16,6 +15,7 @@ else:
     from Queue import Queue
 
 from logdogs import LogDogs
+
 
 logging.basicConfig(
     filename='logdogs.log',
@@ -408,6 +408,7 @@ class TestAcceptance(unittest.TestCase, Common):
     def test_example(self):
         cmd = 'python example.py'
         self.sh(cmd)
+        sleep(.5)
         pid = self.pgrep(cmd)[0]
         self.see('logdogs.pid', pid)
         self.see('logdogs.log', ['start from'])
