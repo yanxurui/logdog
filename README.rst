@@ -98,8 +98,8 @@ Here is an example:
 
 In this case, logdogs will run as a daemon process in current directory
 and check log files every 10 seconds. a.log and b.log will be watched
-both by dog test and glob. When a line containing ``wrong`` but not
-``nothing`` is written to a.log, both dogs' handler will be called. Dog glob will send eamil to your mailbox.
+by both dog test and glob. When a line containing ``wrong`` but not
+``nothing`` is written to a.log, both dogs' handler will be called. Dog glob will send email to your mailbox.
 
 
 API
